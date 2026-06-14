@@ -1,0 +1,54 @@
+# OS Files
+desktop.ini
+Desktop.ini
+[Dd]esktop.ini
+Thumbs.db
+
+# Secrets & Configuration
+.env
+.env.*
+!.env.template
+
+# Environments & Packages
+node_modules/
+jspm_packages/
+web_modules/
+venv/
+.venv/
+env/
+ENV/
+pyvenv.cfg
+.python-version
+
+# Temporary and Cache directories
+.tmp/
+.temp/
+.cache/
+.kilocode/
+.sass-cache/
+.eslintcache
+.parcel-cache
+.nyc_output
+.next/
+out/
+dist/
+build/
+bin/
+obj/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# IDEs
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
