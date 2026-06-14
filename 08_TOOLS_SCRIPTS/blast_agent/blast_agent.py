@@ -2,7 +2,7 @@ import sys
 import subprocess
 from pathlib import Path
 
-WORKSPACE_ROOT = Path("c:/Users/derzw/Desktop/00_ZENTRALE_INSEL/08_TOOLS_SCRIPTS/blast_agent")
+WORKSPACE_ROOT = Path(__file__).parent.resolve()
 
 def init_workspace() -> None:
     """
