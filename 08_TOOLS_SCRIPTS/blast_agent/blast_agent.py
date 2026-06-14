@@ -1,6 +1,16 @@
 import sys
 import subprocess
 from pathlib import Path
+import os
+
+# Import IslandBus
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+try:
+    from tools.island_bus import IslandBus
+    _bus = IslandBus()
+except Exception as e:
+    print(f"Warning: Could not initialize IslandBus: {e}. Events disabled.", file=sys.stderr)
+    _bus = None
 
 WORKSPACE_ROOT = Path(__file__).parent.resolve()
 
@@ -9,6 +19,7 @@ def init_workspace() -> None:
     Checks the directory and ensures all required directories and files are present.
     """
     print(f"Initializing/Verifying B.L.A.S.T. Workspace at {WORKSPACE_ROOT.as_posix()}...", file=sys.stderr)
+    if _bus: _bus.publish("system.init", {"agent": "blast_cli", "message": "Initializing B.L.A.S.T. workspace"})
     
     # Required directories
     dirs = [
@@ -63,7 +74,9 @@ def run_agent() -> None:
         sys.exit(1)
         
     print("Running B.L.A.S.T. Agent Loop...", file=sys.stderr)
+    if _bus: _bus.publish("agent.loop", {"agent": "blast_cli", "status": "starting"})
     res = subprocess.run([sys.executable, str(loop_script)], capture_output=False)
+    if _bus: _bus.publish("agent.loop", {"agent": "blast_cli", "status": "stopped", "returncode": res.returncode})
     sys.exit(res.returncode)
 
 def run_scraper(scraper_name: str, args: list[str]) -> None:
@@ -77,8 +90,10 @@ def run_scraper(scraper_name: str, args: list[str]) -> None:
         print(f"Error: Scraper scraper_{scraper_name}.py not found.", file=sys.stderr)
         sys.exit(1)
         
+    if _bus: _bus.publish("scraper.run", {"agent": "blast_cli", "scraper": scraper_name, "args": args})
     cmd = [sys.executable, str(scraper_file)] + args
     res = subprocess.run(cmd)
+    if _bus: _bus.publish("scraper.done", {"agent": "blast_cli", "scraper": scraper_name, "returncode": res.returncode})
     sys.exit(res.returncode)
 
 def run_inventory(args: list[str]) -> None:
@@ -90,8 +105,10 @@ def run_inventory(args: list[str]) -> None:
         print("Error: inventory_compiler.py not found.", file=sys.stderr)
         sys.exit(1)
         
+    if _bus: _bus.publish("inventory.run", {"agent": "blast_cli", "args": args})
     cmd = [sys.executable, str(indexer_file)] + args
     res = subprocess.run(cmd)
+    if _bus: _bus.publish("inventory.done", {"agent": "blast_cli", "returncode": res.returncode})
     sys.exit(res.returncode)
 
 def main() -> None:
