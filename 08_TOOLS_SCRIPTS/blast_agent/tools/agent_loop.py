@@ -184,7 +184,7 @@ class AgentLoop:
             }
 
 def main() -> None:
-    workspace_root = Path("c:/Users/derzw/Desktop/00_ZENTRALE_INSEL/08_TOOLS_SCRIPTS/blast_agent")
+    workspace_root = Path(__file__).resolve().parent.parent
     loop = AgentLoop(workspace_root)
     res = loop.run_step()
     print(json.dumps(res, indent=2, ensure_ascii=False))
