@@ -73,3 +73,7 @@ DORTMUND_OPEN_DATA_KEY=xxx
 
 * **2026-06-14**: Project initialized. Created master `Workspace.md` and B.L.A.S.T. agent scaffolding folder structure. SOPs drafted.
 * **Next Action**: Create `blast_agent.py` and write the scraper modules under `tools/`.
+
+* **2026-06-15T13:50:15.507430+00:00**: Executed scraper_opendata_dortmund with ['search_datasets', 'Bibliotheken']. Reason: OpenData Dortmund API is public and does not require credentials. Let's do a public dry-run search.
+
+* **2026-06-19T16:06:23.694260+00:00**: Executed scraper_opendata_dortmund with ['search_datasets', 'Bibliotheken']. Reason: OpenData Dortmund API is public and does not require credentials. Let's do a public dry-run search.

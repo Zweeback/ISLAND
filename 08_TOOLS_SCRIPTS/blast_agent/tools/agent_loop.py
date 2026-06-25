@@ -19,6 +19,12 @@ def load_env(env_path: Path) -> dict[str, str]:
                         env[parts[0].strip()] = parts[1].strip()
     return env
 
+try:
+    from local_llm_bridge import query_ollama
+except ImportError:
+    # Handle cases where agent_loop is called directly and the import path isn't right
+    from tools.local_llm_bridge import query_ollama
+
 def call_llm(api_key: str, system_prompt: str, user_prompt: str) -> str:
     """
     Direct HTTP request to OpenAI Chat Completions API using urllib.
@@ -128,16 +134,21 @@ class AgentLoop:
         if user_instruction:
             user_prompt += f"\nUser Directive:\n{user_instruction}\n"
             
+        use_local_llm = self.env.get("USE_LOCAL_LLM", "false").lower() == "true"
+
         print("Reasoning with LLM...", file=sys.stderr)
-        if not api_key:
-            # Fallback mock decision if no API key is available
-            print("No OpenAI API key found, running dry-run mode...", file=sys.stderr)
-            decision_text = json.dumps({
-                "action": "execute_tool",
-                "tool_name": "scraper_opendata_dortmund",
-                "arguments": ["search_datasets", "Bibliotheken"],
-                "reason": "OpenData Dortmund API is public and does not require credentials. Let's do a public dry-run search."
-            })
+        if use_local_llm or not api_key:
+            print("Using local Ollama model for reasoning...", file=sys.stderr)
+            decision_text = query_ollama(system_prompt, user_prompt)
+            # If Ollama returns an error and no API key is present, fallback to dry-run
+            if "error" in decision_text and not api_key:
+                print("Local LLM failed and no OpenAI API key found, running dry-run mode...", file=sys.stderr)
+                decision_text = json.dumps({
+                    "action": "execute_tool",
+                    "tool_name": "scraper_opendata_dortmund",
+                    "arguments": ["search_datasets", "Bibliotheken"],
+                    "reason": "OpenData Dortmund API is public and does not require credentials. Let's do a public dry-run search."
+                })
         else:
             decision_text = call_llm(api_key, system_prompt, user_prompt)
             
@@ -184,7 +195,7 @@ class AgentLoop:
             }
 
 def main() -> None:
-    workspace_root = Path("c:/Users/derzw/Desktop/00_ZENTRALE_INSEL/08_TOOLS_SCRIPTS/blast_agent")
+    workspace_root = Path(__file__).parent.parent.resolve()
     loop = AgentLoop(workspace_root)
     res = loop.run_step()
     print(json.dumps(res, indent=2, ensure_ascii=False))
