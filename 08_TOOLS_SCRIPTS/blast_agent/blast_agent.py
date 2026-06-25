@@ -37,7 +37,8 @@ def init_workspace() -> None:
         WORKSPACE_ROOT / "tools/scraper_statista.py",
         WORKSPACE_ROOT / "tools/scraper_linkedin.py",
         WORKSPACE_ROOT / "tools/inventory_compiler.py",
-        WORKSPACE_ROOT / "tools/agent_loop.py"
+        WORKSPACE_ROOT / "tools/agent_loop.py",
+        WORKSPACE_ROOT / "tools/xai_config.py"
     ]
     
     all_ok = True
