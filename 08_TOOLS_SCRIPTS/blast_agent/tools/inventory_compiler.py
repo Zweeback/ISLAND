@@ -104,7 +104,7 @@ def main() -> None:
     report = indexer.scan()
     
     # Save the index to .tmp folder inside blast_agent directory
-    tmp_dir = Path("c:/Users/derzw/Desktop/00_ZENTRALE_INSEL/08_TOOLS_SCRIPTS/blast_agent/.tmp")
+    tmp_dir = Path(__file__).resolve().parent.parent / ".tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     
     out_file = tmp_dir / "local_inventory_index.json"
