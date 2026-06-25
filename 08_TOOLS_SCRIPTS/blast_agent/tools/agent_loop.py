@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import re
 import urllib.request
 import subprocess
 from datetime import datetime, timezone
@@ -19,10 +20,10 @@ def load_env(env_path: Path) -> dict[str, str]:
                         env[parts[0].strip()] = parts[1].strip()
     return env
 
-def call_llm(api_key: str, system_prompt: str, user_prompt: str) -> str:
+def call_llm(api_key: str, system_prompt: str, user_prompt: str, model_name: str = "gpt-4o-mini") -> str:
     """
-    Direct HTTP request to OpenAI Chat Completions API using urllib.
-    Requires no external packages. Returns JSON text or error string.
+    Direkter HTTP-Request an die OpenAI Schnittstelle.
+    Ermöglicht dynamische Modellkonfiguration über die .env-Datei.
     """
     url = "https://api.openai.com/v1/chat/completions"
     headers = {
@@ -30,7 +31,7 @@ def call_llm(api_key: str, system_prompt: str, user_prompt: str) -> str:
         "Authorization": f"Bearer {api_key}"
     }
     payload = {
-        "model": "gpt-4o-mini",
+        "model": model_name,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt}
@@ -49,17 +50,13 @@ def call_llm(api_key: str, system_prompt: str, user_prompt: str) -> str:
             raw_data = response.read().decode("utf-8")
             res_data = json.loads(raw_data)
             choices = res_data.get("choices", [])
-            if choices and isinstance(choices, list) and len(choices) > 0:
-                first_choice = choices[0]
-                if isinstance(first_choice, dict):
-                    message = first_choice.get("message", {})
-                    if isinstance(message, dict):
-                        content = message.get("content", "")
-                        return str(content)
-            return json.dumps({"error": "Unexpected LLM response format"})
+            if choices and len(choices) > 0:
+                content = choices[0].get("message", {}).get("content", "")
+                return str(content)
+            return json.dumps({"error": "Unerwartetes LLM-Antwortformat"})
     except Exception as e:
-        print(f"LLM API Call failed: {e}", file=sys.stderr)
-        return json.dumps({"error": f"LLM Call failed: {e}"})
+        print(f"LLM API-Aufruf fehlgeschlagen: {e}", file=sys.stderr)
+        return json.dumps({"error": f"LLM-Aufruf fehlgeschlagen: {e}"})
 
 class AgentLoop:
     root: Path
@@ -87,29 +84,55 @@ class AgentLoop:
 
     def execute_tool(self, tool_name: str, args: list[str]) -> str:
         """
-        Executes a Python tool under tools/ via subprocess.
+        Sichere Ausführung von Tools. Blockiert Directory Traversal Angriffe!
         """
+        # HÄRTUNG: Nur reine Dateinamen ohne Verzeichnispfade zulassen
+        if not re.match(r"^[a-zA-Z0-9_]+$", tool_name):
+            return json.dumps({"error": f"Ungültiger Tool-Name '{tool_name}'. Sicherheitsverletzung blockiert!"})
+
         tool_path = self.root / "tools" / f"{tool_name}.py"
         if not tool_path.exists():
-            return json.dumps({"error": f"Tool {tool_name} not found"})
+            return json.dumps({"error": f"Tool {tool_name} nicht im tools/ Verzeichnis gefunden."})
             
         cmd = [sys.executable, str(tool_path)] + args
-        print(f"Executing: {' '.join(cmd)}", file=sys.stderr)
+        print(f"Führe aus: {' '.join(cmd)}", file=sys.stderr)
         try:
             full_env = os.environ.copy()
             full_env.update(self.env)
             
-            res = subprocess.run(cmd, capture_output=True, text=True, env=full_env, timeout=30)
+            res = subprocess.run(cmd, capture_output=True, text=True, env=full_env, timeout=45)
             if res.returncode != 0:
                 return json.dumps({"error": res.stderr})
             return res.stdout
         except Exception as e:
             return json.dumps({"error": str(e)})
 
+    def _append_log_with_rotation(self, gemini_map_content: str, log_entry: str) -> None:
+        """
+        Fügt Logs an gemini.md an, hält aber die Liste der Logs auf den letzten 10 Einträgen.
+        Verhindert ein unendliches Aufblähen des LLM-Kontextfensters!
+        """
+        section_header = "## 4. Maintenance & Execution Log"
+        parts = gemini_map_content.split(section_header)
+
+        header_part = parts[0] + section_header + "
+"
+        log_part = parts[1] if len(parts) > 1 else ""
+
+        # Extrahiere bestehende Logzeilen
+        lines = [line.strip() for line in log_part.split("\n") if line.strip()]
+        lines.append(log_entry.strip())
+
+        # Log-Rotation: Behalte nur die letzten 10 Einträge
+        rotated_lines = lines[-10:]
+
+        final_content = header_part + "\n" + "\n".join(f"* {line.lstrip('* ')}" for line in rotated_lines) + "\n"
+        self.write_file(self.map_path, final_content)
+
     def run_step(self, user_instruction: str | None = None) -> dict[str, Any]:
         api_key = self.env.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        model_name = self.env.get("BLAST_LLM_MODEL", "gpt-4o-mini")
         
-        # Read files for LLM context
         brief = self.read_file(self.brief_path)
         gemini_map = self.read_file(self.map_path)
         
@@ -128,20 +151,18 @@ class AgentLoop:
         if user_instruction:
             user_prompt += f"\nUser Directive:\n{user_instruction}\n"
             
-        print("Reasoning with LLM...", file=sys.stderr)
+        print("Sende Anfrage an LLM...", file=sys.stderr)
         if not api_key:
-            # Fallback mock decision if no API key is available
-            print("No OpenAI API key found, running dry-run mode...", file=sys.stderr)
+            print("Kein API-Key gefunden. Führe Dry-Run aus...", file=sys.stderr)
             decision_text = json.dumps({
                 "action": "execute_tool",
                 "tool_name": "scraper_opendata_dortmund",
                 "arguments": ["search_datasets", "Bibliotheken"],
-                "reason": "OpenData Dortmund API is public and does not require credentials. Let's do a public dry-run search."
+                "reason": "Dry-run Simulation ohne Live-Verbindung."
             })
         else:
-            decision_text = call_llm(api_key, system_prompt, user_prompt)
+            decision_text = call_llm(api_key, system_prompt, user_prompt, model_name)
             
-        # Clean potential markdown fences
         decision_text = decision_text.strip()
         if decision_text.startswith("```"):
             decision_text = decision_text.split("```")[1]
@@ -152,7 +173,7 @@ class AgentLoop:
         try:
             decision = json.loads(decision_text)
         except Exception as e:
-            return {"error": f"Failed to parse LLM decision JSON: {e}", "raw": decision_text}
+            return {"error": f"Fehler beim Parsen der LLM-Entscheidung: {e}", "raw": decision_text}
             
         action = decision.get("action")
         if action == "execute_tool":
@@ -160,15 +181,11 @@ class AgentLoop:
             args_list = decision.get("arguments", [])
             args = [str(a) for a in args_list] if isinstance(args_list, list) else []
             
-            # Execute tool
             output = self.execute_tool(tool_name, args)
             
-            # Update log in gemini.md
-            log_entry = (
-                f"\n* **{datetime.now(timezone.utc).isoformat()}**: Executed {tool_name} with {args}. "
-                f"Reason: {decision.get('reason')}\n"
-            )
-            self.write_file(self.map_path, gemini_map.rstrip() + "\n" + log_entry)
+            # Log-Eintrag schreiben mit Log-Rotation
+            log_entry = f"**{datetime.now(timezone.utc).isoformat()}**: Executed {tool_name} with {args}. Reason: {decision.get('reason')}"
+            self._append_log_with_rotation(gemini_map, log_entry)
             
             return {
                 "status": "success",

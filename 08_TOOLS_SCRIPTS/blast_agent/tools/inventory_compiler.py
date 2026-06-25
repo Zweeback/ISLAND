@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import fnmatch
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import TypedDict
@@ -17,38 +18,62 @@ class ScanReport(TypedDict):
     scan_roots: list[str]
     data: dict[str, list[FileEntry]]
 
-# Default folders to index
-DEFAULT_PATHS: list[Path] = [
-    Path("C:/Users/derzw/Desktop"),
-    Path("C:/Users/derzw/Downloads"),
-    Path("G:/Meine Ablage")
-]
+# Dynamischer Default: Projekt-Root anstelle von lokalen Windows-Ordnern!
+DEFAULT_WORKSPACE_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
-# Strict folder exclusion names
+# Strikte Ausschluss-Verzeichnisse
 EXCLUDED_DIR_NAMES: set[str] = {
     "node_modules", "venv", ".venv", ".git", ".ssh", "AppData",
     "Program Files", "Program Files (x86)", "Windows", "System32",
-    ".gemini", ".continue"
+    ".gemini", ".continue", ".tmp"
 }
 
-# Strict file exclusion prefixes/suffixes
+# Strikte Ausschluss-Muster (Sicherheitsrelevante Filter)
 EXCLUDED_FILE_PATTERNS: list[str] = [
-    ".env", "passwords", "id_rsa", "secret"
+    ".env", "passwords", "id_rsa", "secret", "cookie", "token", "key"
 ]
 
 class LocalIndexer:
     paths: list[Path]
+    ignore_patterns: list[str]
 
-    def __init__(self, paths: list[Path]) -> None:
+    def __init__(self, paths: list[Path], workspace_root: Path) -> None:
         self.paths = paths
+        self.workspace_root = workspace_root
+        self.ignore_patterns = self._load_gitignore_patterns()
+
+    def _load_gitignore_patterns(self) -> list[str]:
+        """
+        Liest die lokale .gitignore ein, um private Dateien zu schuetzen.
+        """
+        patterns = []
+        gitignore_path = self.workspace_root / ".gitignore"
+        if gitignore_path.exists():
+            try:
+                with open(gitignore_path, "r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#"):
+                            patterns.append(line)
+            except Exception as e:
+                print(f"Warnung: .gitignore konnte nicht gelesen werden: {e}", file=sys.stderr)
+        return patterns
 
     def should_exclude_dir(self, dir_name: str) -> bool:
-        return dir_name in EXCLUDED_DIR_NAMES
+        if dir_name in EXCLUDED_DIR_NAMES:
+            return True
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(dir_name, pattern.rstrip("/")):
+                return True
+        return False
 
     def should_exclude_file(self, file_name: str) -> bool:
         lower_name = file_name.lower()
         for pattern in EXCLUDED_FILE_PATTERNS:
             if pattern in lower_name:
+                return True
+        for pattern in self.ignore_patterns:
+            if fnmatch.fnmatch(file_name, pattern):
                 return True
         return False
 
@@ -57,14 +82,13 @@ class LocalIndexer:
         
         for root_path in self.paths:
             if not root_path.exists():
-                print(f"Path does not exist: {root_path}", file=sys.stderr)
+                print(f"Pfad existiert nicht: {root_path}", file=sys.stderr)
                 continue
                 
-            print(f"Scanning directory: {root_path}", file=sys.stderr)
+            print(f"Scanne Verzeichnis: {root_path}", file=sys.stderr)
             file_entries: list[FileEntry] = []
             
             for root, dirs, files in os.walk(root_path):
-                # Modify dirs in-place to skip excluded directories during walk
                 dirs[:] = [d for d in dirs if not self.should_exclude_dir(d)]
                 
                 for file in files:
@@ -81,8 +105,7 @@ class LocalIndexer:
                             "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()
                         })
                     except Exception as e:
-                        # Skip files that we can't access
-                        print(f"Skipping inaccessible file {file}: {e}", file=sys.stderr)
+                        print(f"Uberspringe Datei {file}: {e}", file=sys.stderr)
                         continue
                         
             catalog[root_path.as_posix()] = file_entries
@@ -95,15 +118,19 @@ class LocalIndexer:
         }
 
 def main() -> None:
-    # Use default paths or optional args
-    paths_to_scan = DEFAULT_PATHS
+    # REIHENFOLGE: 1. CLI-Argumente, 2. Env-Variable, 3. Workspace Root (Fallback)
+    env_scan_path = os.getenv("BLAST_SCAN_PATH")
+
     if len(sys.argv) > 1:
         paths_to_scan = [Path(p) for p in sys.argv[1:]]
+    elif env_scan_path:
+        paths_to_scan = [Path(env_scan_path)]
+    else:
+        paths_to_scan = [DEFAULT_WORKSPACE_ROOT]
         
-    indexer = LocalIndexer(paths_to_scan)
+    indexer = LocalIndexer(paths_to_scan, DEFAULT_WORKSPACE_ROOT)
     report = indexer.scan()
     
-    # Save the index to .tmp folder inside blast_agent directory
     tmp_dir = Path(__file__).resolve().parent.parent / ".tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     
@@ -111,8 +138,8 @@ def main() -> None:
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
         
-    print(f"Successfully compiled local inventory scan to {out_file.as_posix()}", file=sys.stderr)
-    # Print high level stats to stdout
+    print(f"Erfolgreich Inventar-Scan kompiliert nach: {out_file.as_posix()}", file=sys.stderr)
+
     summary = {
         "roots_scanned": len(report["scan_roots"]),
         "total_files_indexed": sum(len(files) for files in report["data"].values()),

@@ -11,7 +11,7 @@ G:\Meine Ablage\00_ZENTRALE_INSEL
 Desktop-Einstieg:
 
 ```text
-C:\Users\derzw\Desktop\00_ZENTRALE_INSEL
+/workspace
 ```
 
 Grundregel: Alles ausserhalb dieser Insel ist erst einmal Quarantaene oder Quelle. Es wird nichts blind verschoben, nichts geloescht und nichts als "funktioniert" markiert, bis es in der Insel einen Manifest-Eintrag, einen Test und einen sichtbaren Status gibt.

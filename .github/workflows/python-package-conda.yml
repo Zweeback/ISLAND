@@ -1,0 +1,36 @@
+name: Python Package using Conda
+
+on: [push, pull_request]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Set up Conda Environment
+      uses: conda-incubator/setup-miniconda@v3
+      with:
+        auto-update-conda: true
+        python-version: '3.11'
+        activate-environment: test-env
+
+    - name: Install Dependencies
+      shell: bash -l {0}
+      run: |
+        conda install pytest
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    - name: Run Smoke Test (Inventory Compiler)
+      shell: bash -l {0}
+      run: |
+        python 08_TOOLS_SCRIPTS/blast_agent/tools/inventory_compiler.py

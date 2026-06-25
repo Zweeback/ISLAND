@@ -3,7 +3,7 @@
 ## Executive Summary
 
 - **Die alte Welt wird nicht weiter repariert, sondern eingefroren.** `Sovereign`, `Base`, `Downloads`, `.codex`, `.gemini`, `.antigravity`, alte `STATE_BASE_AUDIT`-Ordner und verstreute Desktop-Projekte sind ab jetzt Quarantaene oder Quelle, nicht mehr Arbeitswahrheit.
-- **Die neue Wahrheit ist ein einziger Desktop-Einstieg mit Google-Drive-Sync.** Der Desktop-Link `C:\Users\derzw\Desktop\00_ZENTRALE_INSEL` zeigt auf `G:\Meine Ablage\00_ZENTRALE_INSEL`.
+- **Die neue Wahrheit ist ein einziger Desktop-Einstieg mit Google-Drive-Sync.** Der Desktop-Link `/workspace` zeigt auf `/workspace`.
 - **Keine Behauptung ohne Betriebsbeweis.** Ein Gateway, RAG, Retriever, TTS, 3D-Avatar oder Livefeed gilt erst als "laeuft", wenn Port, Prozess, UI, Log und ein echter End-to-End-Test im Status stehen.
 - **Ingest kommt vor RAG.** Erst wird normalisiert, klassifiziert und manifestiert; dann wird indexiert. Keine Roh-JSON-Wolke mehr direkt in irgendeine Datenbank.
 - **Technische Erzwingung kommt vor Agentenvertrauen.** Regeln gelten nicht als erledigt, wenn sie nur in Markdown stehen. Sie muessen durch JSONL-Manifeste, Gatekeeper-Skripte, frische Statusproben und Claim-IDs blockierend wirken.

@@ -6,7 +6,7 @@ Welcome to the **Zentrale Insel Master Workspace**. This document serves as the 
 
 ## 1. Current Status (Status-Quo)
 
-* **Workspace Root**: `c:\Users\derzw\Desktop\00_ZENTRALE_INSEL`
+* **Workspace Root**: `/workspace`
 * **Core Folders**:
   * `00_START_HIER/`
   * `01_INGEST_INBOX/` (Target for incoming documents and automatic processing)
@@ -18,7 +18,7 @@ Welcome to the **Zentrale Insel Master Workspace**. This document serves as the 
 * **API Keys & Credentials**:
   * **Loaded**: `OPENAI_API_KEY`, `GITHUB_TOKEN` (used for agent thinking and code syncing).
   * **Pending Local Configuration**: Digibib (Ausweis + PIN), Scribd, Statista, LinkedIn (`li_at` session cookie).
-* **Reference Texts**: 16 files successfully extracted to `C:\Users\derzw\.gemini\antigravity-ide\scratch\extracted_text\`.
+* **Reference Texts**: 16 files successfully extracted to `/workspace/.tmp/extracted_text/`.
   * *Note on Scanned PDFs*: Three files (`1014027619-Google-Antigravity-Agentic-Platform-compressed.pdf`, `1046103511-google-antigravity.pdf`, and `982349709-Google-Antigravity-Three-Things-at-Once.pdf`) are scanned images and contain no embedded text.
 
 ---
