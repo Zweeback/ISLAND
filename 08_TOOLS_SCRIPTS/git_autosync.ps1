@@ -1,7 +1,7 @@
 # PowerShell script to automate Git synchronization for Zentrale Insel.
 $ErrorActionPreference = "Stop"
 
-$workspaceRoot = "c:\Users\derzw\Desktop\00_ZENTRALE_INSEL"
+$workspaceRoot = "$PSScriptRoot\.."
 
 Write-Output "=== Git Autosync Daemon ==="
 Write-Output "Workspace: $workspaceRoot"

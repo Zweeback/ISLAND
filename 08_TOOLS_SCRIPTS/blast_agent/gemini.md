@@ -24,8 +24,8 @@ This file is the "Source of Truth" for the B.L.A.S.T. Local Agentic System proje
 ### Input Credentials Shape (`.env`)
 
 ```bash
-OPENAI_API_KEY=sk-proj-xxx
-GITHUB_TOKEN=ghp_xxx
+OPENAI_API_KEY=your_openai_api_key_here
+GITHUB_TOKEN=your_github_token_here
 
 # Digibib Dortmund
 DIGIBIB_BARCODE=xxx

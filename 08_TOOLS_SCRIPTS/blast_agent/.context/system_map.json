@@ -1,7 +1,7 @@
 {
   "project_name": "blast_agent",
   "version": "1.0.0",
-  "root_path": "c:/Users/derzw/Desktop/00_ZENTRALE_INSEL/08_TOOLS_SCRIPTS/blast_agent",
+  "root_path": ".",
   "components": {
     "orchestrator": {
       "file": "blast_agent.py",

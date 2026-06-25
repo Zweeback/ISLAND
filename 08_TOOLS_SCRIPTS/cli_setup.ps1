@@ -5,8 +5,8 @@ Write-Output "=== Zentrale Insel CLI Setup & Repair ==="
 
 # 1. Update PATH for Python 3.12
 Write-Output "`n[1/4] Configuring Python 3.12 in User PATH..."
-$pythonDir = "C:\Users\derzw\AppData\Local\Programs\Python\Python312"
-$scriptsDir = "C:\Users\derzw\AppData\Local\Programs\Python\Python312\Scripts"
+$pythonDir = "$env:LOCALAPPDATA\Programs\Python\Python312"
+$scriptsDir = "$env:LOCALAPPDATA\Programs\Python\Python312\Scripts"
 $userPath = [System.Environment]::GetEnvironmentVariable("PATH", "User")
 $pathParts = $userPath -split ";"
 
@@ -47,7 +47,7 @@ if (Get-Command npm -ErrorAction SilentlyContinue) {
 
 # 3. Install Google Cloud SDK via winget
 Write-Output "`n[3/4] Checking and Installing Google Cloud SDK..."
-$wingetPath = "C:\Users\derzw\AppData\Local\Microsoft\WindowsApps\winget.exe"
+$wingetPath = "$env:LOCALAPPDATA\Microsoft\WindowsApps\winget.exe"
 
 if (Test-Path $wingetPath) {
     Write-Output "Found winget at $wingetPath."
