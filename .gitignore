@@ -7,7 +7,7 @@ Thumbs.db
 # Secrets & Configuration
 .env
 .env.*
-!.env.template
+!.env.example
 
 # Environments & Packages
 node_modules/
