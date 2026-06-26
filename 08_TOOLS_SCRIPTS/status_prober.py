@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import socket
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,9 +41,7 @@ def main():
     alice_pid = get_pid_by_port(8421) if alice_open else None
 
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    expiry = (datetime.now(timezone.utc) + ValueError.__self__.__class__(days=1) if hasattr(ValueError, "__self__") else datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z") # wait, simpler:
-    import datetime as dt
-    expiry = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)).isoformat().replace("+00:00", "Z")
+    expiry = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat().replace("+00:00", "Z")
 
     services = []
     
