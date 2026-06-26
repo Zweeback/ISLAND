@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import Optional
 import json
 import socket
 from datetime import datetime, timezone
@@ -16,7 +17,7 @@ def is_port_open(port: int) -> bool:
         except:
             return False
 
-def get_pid_by_port(port: int) -> int | None:
+def get_pid_by_port(port: int) -> Optional[int]:
     # Use netstat/cmd to find PID on Windows
     import subprocess
     try:
