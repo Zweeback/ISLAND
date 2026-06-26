@@ -13,6 +13,7 @@ from datetime import datetime
 
 class AnimationType(Enum):
     """ALICE animation types"""
+
     IDLE = "idle"
     WALK = "walk"
     RUN = "run"
@@ -29,6 +30,7 @@ class AnimationType(Enum):
 @dataclass
 class Vector3:
     """3D Vector representation"""
+
     x: float
     y: float
     z: float
@@ -36,16 +38,19 @@ class Vector3:
     def to_dict(self):
         return {"x": self.x, "y": self.y, "z": self.z}
 
-    def distance_to(self, other: 'Vector3') -> float:
-        return np.sqrt((self.x - other.x)**2 + (self.y - other.y)**2 + (self.z - other.z)**2)
+    def distance_to(self, other: "Vector3") -> float:
+        return np.sqrt(
+            (self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2
+        )
 
 
 @dataclass
 class Rotation:
     """Euler rotation in degrees"""
+
     pitch: float  # X-axis (up/down)
-    yaw: float    # Y-axis (left/right)
-    roll: float   # Z-axis (tilt)
+    yaw: float  # Y-axis (left/right)
+    roll: float  # Z-axis (tilt)
 
     def to_dict(self):
         return {"pitch": self.pitch, "yaw": self.yaw, "roll": self.roll}
@@ -54,6 +59,7 @@ class Rotation:
 @dataclass
 class CharacterMaterial:
     """Material properties for character rendering"""
+
     color: str = "#ffffff"
     metalness: float = 0.0
     roughness: float = 0.8
@@ -67,6 +73,7 @@ class CharacterMaterial:
 @dataclass
 class AnimationFrame:
     """Single animation frame"""
+
     time: float
     position: Vector3
     rotation: Rotation
@@ -76,48 +83,50 @@ class AnimationFrame:
 class ALICE3D:
     """ALICE - Advanced Live Interactive Character Engine"""
 
-    def __init__(self, name: str = "ALICE", model_path: str = None, texture_path: str = None):
+    def __init__(
+        self, name: str = "ALICE", model_path: str = None, texture_path: str = None
+    ):
         self.name = name
         self.model_path = model_path or "07_3D_ASSET_LIBRARY/alice.glb"
         self.texture_path = texture_path or "07_3D_ASSET_LIBRARY/alice_texture.png"
-        
+
         # Core transform properties
         self.position = Vector3(0, 0, 0)
         self.rotation = Rotation(0, 0, 0)
         self.scale = Vector3(1, 1, 1)
-        
+
         # Character state
         self.current_animation = AnimationType.IDLE
         self.animation_speed = 1.0
         self.animation_loop = False
         self.animation_progress = 0.0
-        
+
         # Material and appearance
         self.material = CharacterMaterial(color="#ff00ff")
         self.is_visible = True
         self.alpha_value = 1.0
-        
+
         # Movement and physics
         self.is_moving = False
         self.velocity = Vector3(0, 0, 0)
         self.max_speed = 5.0
         self.acceleration = 0.1
-        
+
         # Animation and dialogue
         self.is_talking = False
         self.current_dialogue = ""
         self.dialogue_duration = 0.0
         self.current_gesture = None
         self.gesture_intensity = 0.5
-        
+
         # Animation queues
         self.animation_queue: List[Tuple[AnimationType, float, bool]] = []
         self.dialogue_queue: List[Dict] = []
         self.gesture_queue: List[str] = []
-        
+
         # Keyframe animations
         self.keyframes: Dict[str, List[AnimationFrame]] = {}
-        
+
         # State tracking
         self.state_history: List[Dict] = []
         self.creation_time = datetime.now().isoformat()
@@ -145,24 +154,26 @@ class ALICE3D:
         self.scale = Vector3(x, y, z)
         return self
 
-    def move_to(self, target_x: float, target_y: float, target_z: float, duration: float = 1.0, run: bool = False):
+    def move_to(
+        self,
+        target_x: float,
+        target_y: float,
+        target_z: float,
+        duration: float = 1.0,
+        run: bool = False,
+    ):
         """Animate character movement to target position"""
         animation = AnimationType.RUN if run else AnimationType.WALK
         self.animation_queue.append((animation, duration, True))
-        
-        # Linear interpolation path
-        steps = int(duration * 30)  # 30 FPS
-        for i in range(steps):
-            t = i / steps
-            x = self.position.x + (target_x - self.position.x) * t
-            y = self.position.y + (target_y - self.position.y) * t
-            z = self.position.z + (target_z - self.position.z) * t
-        
+
+        # Linear interpolation path (currently just a simulation step that sets the final position)
         self.position = Vector3(target_x, target_y, target_z)
         self.is_moving = False
         return self
 
-    def play_animation(self, animation_type: AnimationType, duration: float = 1.0, loop: bool = False):
+    def play_animation(
+        self, animation_type: AnimationType, duration: float = 1.0, loop: bool = False
+    ):
         """Queue animation to play"""
         self.current_animation = animation_type
         self.animation_queue.append((animation_type, duration, loop))
@@ -173,15 +184,15 @@ class ALICE3D:
         self.is_talking = True
         if duration is None:
             duration = len(text) * 0.05  # Rough estimate: ~50ms per character
-        
+
         self.current_dialogue = text
         self.dialogue_duration = duration
         self.animation_queue.append((AnimationType.TALK, duration, False))
-        
+
         dialogue_entry = {
             "text": text,
             "duration": duration,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
         }
         self.dialogue_queue.append(dialogue_entry)
         return dialogue_entry
@@ -200,19 +211,26 @@ class ALICE3D:
         direction = Vector3(
             target.x - self.position.x,
             target.y - self.position.y,
-            target.z - self.position.z
+            target.z - self.position.z,
         )
-        
+
         # Calculate rotation angles
         import math
+
         yaw = math.atan2(direction.x, direction.z) * 180 / math.pi
         distance_xz = math.sqrt(direction.x**2 + direction.z**2)
         pitch = math.atan2(-direction.y, distance_xz) * 180 / math.pi
-        
+
         self.rotation = Rotation(pitch, yaw, 0)
         return self
 
-    def set_material(self, color: str = None, metalness: float = None, roughness: float = None, opacity: float = None):
+    def set_material(
+        self,
+        color: str = None,
+        metalness: float = None,
+        roughness: float = None,
+        opacity: float = None,
+    ):
         """Update character material properties"""
         if color:
             self.material.color = color
@@ -262,7 +280,7 @@ class ALICE3D:
             "currentDialogue": self.current_dialogue,
             "currentGesture": self.current_gesture,
             "visible": self.is_visible,
-            "material": self.material.to_dict()
+            "material": self.material.to_dict(),
         }
 
     def to_dict(self) -> Dict:
@@ -289,7 +307,9 @@ class ALICE3D:
             "createdAt": self.creation_time,
             "lastUpdated": self.last_update_time,
             "dialogueHistory": self.dialogue_queue[-10:],  # Last 10 dialogues
-            "animationQueue": [(anim.value, dur, loop) for anim, dur, loop in self.animation_queue]
+            "animationQueue": [
+                (anim.value, dur, loop) for anim, dur, loop in self.animation_queue
+            ],
         }
 
     def to_json(self) -> str:
@@ -308,7 +328,9 @@ class ALICE3D:
 class ALICEScene:
     """Scene containing ALICE and interactive elements"""
 
-    def __init__(self, width: int = 1920, height: int = 1080, background: str = "#0a0e27"):
+    def __init__(
+        self, width: int = 1920, height: int = 1080, background: str = "#0a0e27"
+    ):
         self.width = width
         self.height = height
         self.background = background
@@ -324,18 +346,34 @@ class ALICEScene:
         self.alice = alice
         return self
 
-    def set_camera(self, x: float, y: float, z: float, target_x: float = 0, target_y: float = 1, target_z: float = 0):
+    def set_camera(
+        self,
+        x: float,
+        y: float,
+        z: float,
+        target_x: float = 0,
+        target_y: float = 1,
+        target_z: float = 0,
+    ):
         """Set camera position and target"""
         self.camera_position = Vector3(x, y, z)
         self.camera_target = Vector3(target_x, target_y, target_z)
         return self
 
-    def add_light(self, name: str, light_type: str, x: float, y: float, z: float, intensity: float = 1.0):
+    def add_light(
+        self,
+        name: str,
+        light_type: str,
+        x: float,
+        y: float,
+        z: float,
+        intensity: float = 1.0,
+    ):
         """Add light to scene"""
         self.lights[name] = {
             "type": light_type,
             "position": {"x": x, "y": y, "z": z},
-            "intensity": intensity
+            "intensity": intensity,
         }
         return self
 
@@ -347,11 +385,11 @@ class ALICEScene:
             "background": self.background,
             "camera": {
                 "position": self.camera_position.to_dict(),
-                "target": self.camera_target.to_dict()
+                "target": self.camera_target.to_dict(),
             },
             "alice": self.alice.to_dict() if self.alice else None,
             "lights": self.lights,
-            "createdAt": self.scene_created_time
+            "createdAt": self.scene_created_time,
         }
 
     def to_json(self) -> str:
@@ -362,8 +400,8 @@ class ALICEScene:
 def create_alice_viewer_html(scene: ALICEScene) -> str:
     """Generate interactive HTML viewer for ALICE with Three.js"""
     scene_data = scene.to_dict()
-    
-    html = f'''<!DOCTYPE html>
+
+    html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -765,7 +803,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
     </script>
 </body>
 </html>
-'''
+"""
     return html
 
 
@@ -774,20 +812,20 @@ if __name__ == "__main__":
     alice = ALICE3D(name="ALICE")
     alice.set_position(0, 0, 0)
     alice.set_material(color="#ff00ff")
-    
+
     # Create scene
     scene = ALICEScene(width=1920, height=1080)
     scene.add_alice(alice)
     scene.add_light("main", "directional", 10, 15, 10, 0.8)
     scene.add_light("fill", "point", -5, 5, 5, 0.4)
-    
+
     # Generate HTML viewer
     html = create_alice_viewer_html(scene)
-    
+
     html_path = "07_3D_ASSET_LIBRARY/alice_viewer.html"
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
 
     print("✓ ALICE 3D Character System created")
-    print(f"✓ Scene configuration saved")
+    print("✓ Scene configuration saved")
     print(f"✓ HTML viewer ready at {html_path}")

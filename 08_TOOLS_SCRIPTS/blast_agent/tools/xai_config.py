@@ -10,10 +10,7 @@ def call_xai(api_key: str, model: str, system_prompt: str, user_prompt: str) -> 
     Requires no external packages. Returns JSON text or error string.
     """
     url = "https://api.x.ai/v1/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
 
     # Map "eve" to grok-beta (or grok-4 if that's what xAI goes by)
     # The user mentioned grok-4 or grok-beta. They likely just provisioned the key
@@ -31,9 +28,9 @@ def call_xai(api_key: str, model: str, system_prompt: str, user_prompt: str) -> 
         "model": actual_model,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ],
-        "temperature": 0.2
+        "temperature": 0.2,
     }
 
     try:
@@ -41,7 +38,7 @@ def call_xai(api_key: str, model: str, system_prompt: str, user_prompt: str) -> 
             url,
             data=json.dumps(payload).encode("utf-8"),
             headers=headers,
-            method="POST"
+            method="POST",
         )
         with urllib.request.urlopen(req, timeout=30) as response:
             raw_data = response.read().decode("utf-8")

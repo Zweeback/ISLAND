@@ -4,8 +4,6 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
-
 # Add directory to sys.path to import island_gate
 sys.path.append(os.path.abspath("08_TOOLS_SCRIPTS"))
 
@@ -20,13 +18,15 @@ def valid_manifest_item(record_id="test-1"):
     item = {field: f"dummy_{field}" for field in REQUIRED_MANIFEST_FIELDS}
 
     # Overwrite specific fields that have validation rules
-    item.update({
-        "id": record_id,
-        "rag_allowed": False,
-        "livefeed_allowed": False,
-        "lifecycle_state": "MIGRATED",
-        "depends_on": [],
-    })
+    item.update(
+        {
+            "id": record_id,
+            "rag_allowed": False,
+            "livefeed_allowed": False,
+            "lifecycle_state": "MIGRATED",
+            "depends_on": [],
+        }
+    )
     return item
 
 
@@ -111,7 +111,7 @@ def test_validate_manifest_livefeed_constraints(tmp_path: Path):
     """Test constraints when livefeed_allowed=True."""
     item = valid_manifest_item()
     item["livefeed_allowed"] = True
-    item["risk_class"] = "private" # In BLOCKED_RISK
+    item["risk_class"] = "private"  # In BLOCKED_RISK
 
     manifest_path = create_manifest(tmp_path, [item])
     errors = validate_manifest(manifest_path)
@@ -129,7 +129,9 @@ def test_validate_manifest_active_state_constraints(tmp_path: Path):
     item["verification_evidence"] = ""
     manifest_path = create_manifest(tmp_path, [item])
     errors = validate_manifest(manifest_path)
-    assert any("ACTIVE requires last_verified and verification_evidence" in e for e in errors)
+    assert any(
+        "ACTIVE requires last_verified and verification_evidence" in e for e in errors
+    )
 
     # Verification expired
     item["last_verified"] = "2023-01-01T00:00:00Z"
