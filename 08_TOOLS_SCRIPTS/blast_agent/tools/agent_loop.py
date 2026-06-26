@@ -21,9 +21,11 @@ def load_env(env_path: Path) -> dict[str, str]:
 
 try:
     from local_llm_bridge import query_ollama
+    from xai_config import call_xai
 except ImportError:
     # Handle cases where agent_loop is called directly and the import path isn't right
     from tools.local_llm_bridge import query_ollama
+    from tools.xai_config import call_xai
 
 def call_llm(api_key: str, system_prompt: str, user_prompt: str) -> str:
     """
@@ -113,7 +115,11 @@ class AgentLoop:
             return json.dumps({"error": str(e)})
 
     def run_step(self, user_instruction: str | None = None) -> dict[str, Any]:
-        api_key = self.env.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        llm_provider = self.env.get("LLM_PROVIDER", "openai").lower()
+        llm_model = self.env.get("LLM_MODEL", "gpt-4o-mini")
+
+        openai_api_key = self.env.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        xai_api_key = self.env.get("XAI_API_KEY") or os.environ.get("XAI_API_KEY")
         
         # Read files for LLM context
         brief = self.read_file(self.brief_path)
@@ -136,21 +142,29 @@ class AgentLoop:
             
         use_local_llm = self.env.get("USE_LOCAL_LLM", "false").lower() == "true"
 
-        print("Reasoning with LLM...", file=sys.stderr)
-        if use_local_llm or not api_key:
+        print(f"Reasoning with LLM ({llm_provider} / {llm_model})...", file=sys.stderr)
+        if use_local_llm:
             print("Using local Ollama model for reasoning...", file=sys.stderr)
             decision_text = query_ollama(system_prompt, user_prompt)
-            # If Ollama returns an error and no API key is present, fallback to dry-run
-            if "error" in decision_text and not api_key:
-                print("Local LLM failed and no OpenAI API key found, running dry-run mode...", file=sys.stderr)
+        elif llm_provider == "xai":
+            if not xai_api_key:
+                return {"error": "LLM_PROVIDER is xai but XAI_API_KEY is not set."}
+            print(f"Using xAI model ({llm_model}) for reasoning...", file=sys.stderr)
+            decision_text = call_xai(xai_api_key, llm_model, system_prompt, user_prompt)
+        elif llm_provider == "openai" and openai_api_key:
+            decision_text = call_llm(openai_api_key, system_prompt, user_prompt)
+        else:
+            # Fallback to local / dry-run if no valid config
+            print("No valid API key found or use_local_llm not set. Trying local Ollama...", file=sys.stderr)
+            decision_text = query_ollama(system_prompt, user_prompt)
+            if "error" in decision_text:
+                print("Local LLM failed, running dry-run mode...", file=sys.stderr)
                 decision_text = json.dumps({
                     "action": "execute_tool",
                     "tool_name": "scraper_opendata_dortmund",
                     "arguments": ["search_datasets", "Bibliotheken"],
-                    "reason": "OpenData Dortmund API is public and does not require credentials. Let's do a public dry-run search."
+                    "reason": "Fallback dry-run."
                 })
-        else:
-            decision_text = call_llm(api_key, system_prompt, user_prompt)
             
         # Clean potential markdown fences
         decision_text = decision_text.strip()

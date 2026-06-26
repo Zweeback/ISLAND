@@ -2,7 +2,7 @@ import json
 import urllib.request
 import urllib.parse
 import sys
-from typing import Any
+
 
 def query_ollama(system_prompt: str, user_prompt: str, model: str = "llama3") -> str:
     """
