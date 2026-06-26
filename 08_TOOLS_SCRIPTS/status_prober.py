@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import socket
+import typing
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -18,7 +19,7 @@ def is_port_open(port: int) -> bool:
 
 _PORT_TO_PID_CACHE = None
 
-def get_pid_by_port(port: int) -> int | None:
+def get_pid_by_port(port: int) -> typing.Optional[int]:
     # Use netstat/cmd to find PID on Windows
     global _PORT_TO_PID_CACHE
     import subprocess
