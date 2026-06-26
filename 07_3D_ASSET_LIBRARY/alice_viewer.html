@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALICE - Interactive 3D Character Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0e27;
+            color: #ff00ff;
+            overflow: hidden;
+        }
+        #canvas { display: block; width: 100%; height: 100%; }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(10, 14, 39, 0.95);
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            max-width: 350px;
+            border: 2px solid #ff00ff;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
+        }
+
+        #stats {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(10, 14, 39, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 12px;
+            border: 2px solid #ff00ff;
+            font-family: monospace;
+        }
+
+        h1 {
+            color: #ff00ff;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+
+        h2 {
+            color: #ff00ff;
+            margin: 15px 0 10px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #ff00ff;
+            padding-bottom: 5px;
+        }
+
+        .info-line {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .label { color: #888; }
+        .value { color: #ff00ff; font-weight: bold; }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        button {
+            background: rgba(255, 0, 255, 0.2);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: monospace;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+
+        button:hover {
+            background: rgba(255, 0, 255, 0.4);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+            transform: scale(1.05);
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        input[type="text"] {
+            background: rgba(255, 0, 255, 0.1);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
+            padding: 6px;
+            border-radius: 4px;
+            width: 100%;
+            margin: 5px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+
+        .dialogue-box {
+            background: rgba(255, 0, 255, 0.1);
+            border-left: 3px solid #ff00ff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            max-height: 100px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div id="ui">
+        <h1>🤖 ALICE - Interactive Character</h1>
+
+        <h2>Character Status</h2>
+        <div class="info-line">
+            <span class="label">Name:</span>
+            <span class="value" id="char-name">ALICE</span>
+        </div>
+        <div class="info-line">
+            <span class="label">Animation:</span>
+            <span class="value" id="anim-type">idle</span>
+        </div>
+        <div class="info-line">
+            <span class="label">Position:</span>
+            <span class="value" id="position-info">0.0, 0.0, 0.0</span>
+        </div>
+
+        <h2>Animation Controls</h2>
+        <div class="button-group">
+            <button onclick="playAnim('idle')">IDLE</button>
+            <button onclick="playAnim('walk')">WALK</button>
+            <button onclick="playAnim('jump')">JUMP</button>
+            <button onclick="playAnim('dance')">DANCE</button>
+            <button onclick="playAnim('wave')">WAVE</button>
+            <button onclick="playAnim('think')">THINK</button>
+        </div>
+
+        <h2>Dialogue</h2>
+        <input type="text" id="dialogue-input" placeholder="What should ALICE say?">
+        <button onclick="makeAliceTalk()" style="width: 100%; margin-top: 5px;">SAY</button>
+        <div class="dialogue-box" id="dialogue-history"></div>
+
+        <h2>Appearance</h2>
+        <div class="button-group">
+            <button onclick="changeColor('#ff00ff')">Magenta</button>
+            <button onclick="changeColor('#00ffff')">Cyan</button>
+            <button onclick="changeColor('#ff00ff')">Magenta</button>
+            <button onclick="changeColor('#ffff00')">Yellow</button>
+        </div>
+    </div>
+
+    <div id="stats">
+        <div class="info-line">
+            <span class="label">FPS:</span>
+            <span class="value" id="fps">60</span>
+        </div>
+        <div class="info-line">
+            <span class="label">Polygons:</span>
+            <span class="value" id="polys">0</span>
+        </div>
+        <div class="info-line">
+            <span class="label">Time:</span>
+            <span class="value" id="time-display">00:00</span>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script>
+        const sceneData = {"width": 1920, "height": 1080, "background": "#0a0e27", "camera": {"position": {"x": 0, "y": 1.7, "z": 4}, "target": {"x": 0, "y": 1, "z": 0}}, "alice": {"name": "ALICE", "modelPath": "07_3D_ASSET_LIBRARY/alice.glb", "texturePath": "07_3D_ASSET_LIBRARY/alice_texture.png", "position": {"x": 0, "y": 0, "z": 0}, "rotation": {"pitch": 0, "yaw": 0, "roll": 0}, "scale": {"x": 1, "y": 1, "z": 1}, "currentAnimation": "idle", "animationSpeed": 1.0, "animationProgress": 0.0, "material": {"color": "#ff00ff", "metalness": 0.0, "roughness": 0.8, "emissive": "#000000", "opacity": 1.0}, "isMoving": false, "isTalking": false, "currentDialogue": "", "dialogueDuration": 0.0, "currentGesture": null, "gestureIntensity": 0.5, "visible": true, "alpha": 1.0, "createdAt": "2026-06-26T06:53:00.917062", "lastUpdated": "2026-06-26T06:53:00.917077", "dialogueHistory": [], "animationQueue": []}, "lights": {"main": {"type": "directional", "position": {"x": 10, "y": 15, "z": 10}, "intensity": 0.8}, "fill": {"type": "point", "position": {"x": -5, "y": 5, "z": 5}, "intensity": 0.4}}, "createdAt": "2026-06-26T06:53:00.917088"};
+        let aliceMesh = null;
+        let currentAnimation = 'idle';
+        let animationTime = 0;
+
+        // Scene setup
+        const canvas = document.getElementById('canvas');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(sceneData.background);
+
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(
+            sceneData.camera.position.x,
+            sceneData.camera.position.y,
+            sceneData.camera.position.z
+        );
+        camera.lookAt(
+            sceneData.camera.target.x,
+            sceneData.camera.target.y,
+            sceneData.camera.target.z
+        );
+
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFShadowShadowMap;
+
+        // Lighting setup
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(10, 15, 10);
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+        // Ground
+        const groundGeometry = new THREE.PlaneGeometry(100, 100);
+        const groundMaterial = new THREE.MeshStandardMaterial({
+            color: '#1a2a4a',
+            roughness: 0.8,
+            metalness: 0.1
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Create ALICE
+        const aliceData = sceneData.alice;
+
+        const loader = new THREE.GLTFLoader();
+        loader.load(aliceData.modelPath, function(gltf) {
+            aliceMesh = gltf.scene;
+
+            aliceMesh.traverse(function(child) {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (child.material) {
+                        child.material = new THREE.MeshStandardMaterial({
+                            color: aliceData.material.color,
+                            metalness: aliceData.material.metalness,
+                            roughness: aliceData.material.roughness,
+                            emissive: '#330033'
+                        });
+                    }
+                }
+            });
+
+            aliceMesh.position.set(
+                aliceData.position.x,
+                aliceData.position.y,
+                aliceData.position.z
+            );
+
+            // Apply scale if any
+            aliceMesh.scale.set(
+                aliceData.scale.x,
+                aliceData.scale.y,
+                aliceData.scale.z
+            );
+
+            scene.add(aliceMesh);
+        }, undefined, function(error) {
+            console.error('An error happened while loading the model:', error);
+        });
+
+        // Animation functions
+        function playAnim(anim) {
+            currentAnimation = anim;
+            animationTime = 0;
+            document.getElementById('anim-type').textContent = anim.toUpperCase();
+
+            if (!aliceMesh) return;
+
+            switch(anim) {
+                case 'jump':
+                    aliceMesh.position.y = 2;
+                    setTimeout(() => { if(aliceMesh) aliceMesh.position.y = 0; }, 600);
+                    break;
+                case 'wave':
+                    aliceMesh.rotation.z += Math.PI / 6;
+                    break;
+                case 'dance':
+                    let danceIntensity = 0;
+                    let danceInterval = setInterval(() => {
+                        if(aliceMesh) {
+                            aliceMesh.rotation.y += 0.3;
+                            aliceMesh.position.x = Math.sin(Date.now() / 200) * 0.5;
+                        }
+                        danceIntensity++;
+                        if (danceIntensity > 30) clearInterval(danceInterval);
+                    }, 50);
+                    break;
+            }
+        }
+
+        function makeAliceTalk() {
+            const input = document.getElementById('dialogue-input');
+            const text = input.value.trim();
+            if (text.length > 0) {
+                currentAnimation = 'talk';
+                const history = document.getElementById('dialogue-history');
+                const entry = document.createElement('div');
+                entry.style.marginBottom = '5px';
+                entry.textContent = '> ' + text;
+                history.appendChild(entry);
+                history.scrollTop = history.scrollHeight;
+                input.value = '';
+            }
+        }
+
+        function changeColor(color) {
+            material.color.setHex(color.replace('#', '0x'));
+        }
+
+        // Animation loop
+        let frameCount = 0;
+        let lastTime = Date.now();
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            animationTime += 0.016;
+
+            if (aliceMesh) {
+                // Simple animations
+                if (currentAnimation === 'idle') {
+                    aliceMesh.rotation.y = Math.sin(animationTime) * 0.1;
+                } else if (currentAnimation === 'walk') {
+                    aliceMesh.position.x = Math.sin(animationTime) * 0.5;
+                    aliceMesh.rotation.y = Math.sin(animationTime) * 0.2;
+                } else if (currentAnimation === 'think') {
+                    aliceMesh.rotation.x = Math.sin(animationTime * 2) * 0.05;
+                }
+
+                // Update position info
+                document.getElementById('position-info').textContent =
+                    aliceMesh.position.x.toFixed(2) + ', ' +
+                    aliceMesh.position.y.toFixed(2) + ', ' +
+                    aliceMesh.position.z.toFixed(2);
+            }
+
+            // FPS counter
+            frameCount++;
+            const now = Date.now();
+            if (now - lastTime >= 1000) {
+                document.getElementById('fps').textContent = frameCount;
+                frameCount = 0;
+                lastTime = now;
+            }
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Update time display
+        setInterval(() => {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById('time-display').textContent = h + ':' + m;
+        }, 1000);
+
+        // Allow Enter key to talk
+        document.getElementById('dialogue-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') makeAliceTalk();
+        });
+    </script>
+</body>
+</html>

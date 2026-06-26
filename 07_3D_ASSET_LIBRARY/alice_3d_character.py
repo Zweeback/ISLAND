@@ -93,7 +93,7 @@ class ALICE3D:
         self.animation_progress = 0.0
         
         # Material and appearance
-        self.material = CharacterMaterial(color="#00ff88")
+        self.material = CharacterMaterial(color="#ff00ff")
         self.is_visible = True
         self.alpha_value = 1.0
         
@@ -375,7 +375,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         body {{
             font-family: 'Courier New', monospace;
             background: {scene_data['background']};
-            color: #00ff88;
+            color: #ff00ff;
             overflow: hidden;
         }}
         #canvas {{ display: block; width: 100%; height: 100%; }}
@@ -389,8 +389,8 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             border-radius: 8px;
             font-size: 13px;
             max-width: 350px;
-            border: 2px solid #00ff88;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+            border: 2px solid #ff00ff;
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
         }}
         
         #stats {{
@@ -401,22 +401,22 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             padding: 15px;
             border-radius: 8px;
             font-size: 12px;
-            border: 2px solid #00ff88;
+            border: 2px solid #ff00ff;
             font-family: monospace;
         }}
         
         h1 {{
-            color: #00ff88;
+            color: #ff00ff;
             font-size: 18px;
             margin-bottom: 15px;
-            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
         }}
         
         h2 {{
-            color: #00ff88;
+            color: #ff00ff;
             margin: 15px 0 10px 0;
             font-size: 13px;
-            border-bottom: 1px solid #00ff88;
+            border-bottom: 1px solid #ff00ff;
             padding-bottom: 5px;
         }}
         
@@ -427,7 +427,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         }}
         
         .label {{ color: #888; }}
-        .value {{ color: #00ff88; font-weight: bold; }}
+        .value {{ color: #ff00ff; font-weight: bold; }}
         
         .button-group {{
             display: grid;
@@ -437,9 +437,9 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         }}
         
         button {{
-            background: rgba(0, 255, 136, 0.2);
-            border: 1px solid #00ff88;
-            color: #00ff88;
+            background: rgba(255, 0, 255, 0.2);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
             padding: 8px 12px;
             border-radius: 4px;
             cursor: pointer;
@@ -450,8 +450,8 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         }}
         
         button:hover {{
-            background: rgba(0, 255, 136, 0.4);
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            background: rgba(255, 0, 255, 0.4);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
             transform: scale(1.05);
         }}
         
@@ -460,9 +460,9 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         }}
         
         input[type="text"] {{
-            background: rgba(0, 255, 136, 0.1);
-            border: 1px solid #00ff88;
-            color: #00ff88;
+            background: rgba(255, 0, 255, 0.1);
+            border: 1px solid #ff00ff;
+            color: #ff00ff;
             padding: 6px;
             border-radius: 4px;
             width: 100%;
@@ -473,12 +473,12 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         
         input[type="text"]:focus {{
             outline: none;
-            box-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
         }}
         
         .dialogue-box {{
-            background: rgba(0, 255, 136, 0.1);
-            border-left: 3px solid #00ff88;
+            background: rgba(255, 0, 255, 0.1);
+            border-left: 3px solid #ff00ff;
             padding: 10px;
             margin: 10px 0;
             border-radius: 4px;
@@ -547,6 +547,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script>
         const sceneData = {json.dumps(scene_data)};
         let aliceMesh = null;
@@ -607,23 +608,43 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         
         // Create ALICE
         const aliceData = sceneData.alice;
-        const geometry = new THREE.BoxGeometry(0.6, 1.8, 0.4);
-        const material = new THREE.MeshStandardMaterial({{
-            color: aliceData.material.color,
-            metalness: aliceData.material.metalness,
-            roughness: aliceData.material.roughness,
-            emissive: '#003322'
-        }});
         
-        aliceMesh = new THREE.Mesh(geometry, material);
-        aliceMesh.position.set(
-            aliceData.position.x,
-            aliceData.position.y,
-            aliceData.position.z
-        );
-        aliceMesh.castShadow = true;
-        aliceMesh.receiveShadow = true;
-        scene.add(aliceMesh);
+        const loader = new THREE.GLTFLoader();
+        loader.load(aliceData.modelPath, function(gltf) {{
+            aliceMesh = gltf.scene;
+
+            aliceMesh.traverse(function(child) {{
+                if (child.isMesh) {{
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (child.material) {{
+                        child.material = new THREE.MeshStandardMaterial({{
+                            color: aliceData.material.color,
+                            metalness: aliceData.material.metalness,
+                            roughness: aliceData.material.roughness,
+                            emissive: '#330033'
+                        }});
+                    }}
+                }}
+            }});
+
+            aliceMesh.position.set(
+                aliceData.position.x,
+                aliceData.position.y,
+                aliceData.position.z
+            );
+
+            // Apply scale if any
+            aliceMesh.scale.set(
+                aliceData.scale.x,
+                aliceData.scale.y,
+                aliceData.scale.z
+            );
+
+            scene.add(aliceMesh);
+        }}, undefined, function(error) {{
+            console.error('An error happened while loading the model:', error);
+        }});
         
         // Animation functions
         function playAnim(anim) {{
@@ -631,10 +652,12 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             animationTime = 0;
             document.getElementById('anim-type').textContent = anim.toUpperCase();
             
+            if (!aliceMesh) return;
+
             switch(anim) {{
                 case 'jump':
                     aliceMesh.position.y = 2;
-                    setTimeout(() => {{ aliceMesh.position.y = 0; }}, 600);
+                    setTimeout(() => {{ if(aliceMesh) aliceMesh.position.y = 0; }}, 600);
                     break;
                 case 'wave':
                     aliceMesh.rotation.z += Math.PI / 6;
@@ -642,8 +665,10 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
                 case 'dance':
                     let danceIntensity = 0;
                     let danceInterval = setInterval(() => {{
-                        aliceMesh.rotation.y += 0.3;
-                        aliceMesh.position.x = Math.sin(Date.now() / 200) * 0.5;
+                        if(aliceMesh) {{
+                            aliceMesh.rotation.y += 0.3;
+                            aliceMesh.position.x = Math.sin(Date.now() / 200) * 0.5;
+                        }}
                         danceIntensity++;
                         if (danceIntensity > 30) clearInterval(danceInterval);
                     }}, 50);
@@ -667,7 +692,15 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         }}
         
         function changeColor(color) {{
-            material.color.setHex(color.replace('#', '0x'));
+            if (aliceMesh) {{
+                aliceMesh.traverse(function(child) {{
+                    if (child.isMesh && child.material) {{
+                        if (child.material.color) {{
+                            child.material.color.setHex(color.replace('#', '0x'));
+                        }}
+                    }}
+                }});
+            }}
         }}
         
         // Animation loop
@@ -679,21 +712,23 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             
             animationTime += 0.016;
             
-            // Simple animations
-            if (currentAnimation === 'idle') {{
-                aliceMesh.rotation.y = Math.sin(animationTime) * 0.1;
-            }} else if (currentAnimation === 'walk') {{
-                aliceMesh.position.x = Math.sin(animationTime) * 0.5;
-                aliceMesh.rotation.y = Math.sin(animationTime) * 0.2;
-            }} else if (currentAnimation === 'think') {{
-                aliceMesh.rotation.x = Math.sin(animationTime * 2) * 0.05;
+            if (aliceMesh) {{
+                // Simple animations
+                if (currentAnimation === 'idle') {{
+                    aliceMesh.rotation.y = Math.sin(animationTime) * 0.1;
+                }} else if (currentAnimation === 'walk') {{
+                    aliceMesh.position.x = Math.sin(animationTime) * 0.5;
+                    aliceMesh.rotation.y = Math.sin(animationTime) * 0.2;
+                }} else if (currentAnimation === 'think') {{
+                    aliceMesh.rotation.x = Math.sin(animationTime * 2) * 0.05;
+                }}
+
+                // Update position info
+                document.getElementById('position-info').textContent =
+                    aliceMesh.position.x.toFixed(2) + ', ' +
+                    aliceMesh.position.y.toFixed(2) + ', ' +
+                    aliceMesh.position.z.toFixed(2);
             }}
-            
-            // Update position info
-            document.getElementById('position-info').textContent = 
-                aliceMesh.position.x.toFixed(2) + ', ' +
-                aliceMesh.position.y.toFixed(2) + ', ' +
-                aliceMesh.position.z.toFixed(2);
             
             // FPS counter
             frameCount++;
@@ -738,7 +773,7 @@ if __name__ == "__main__":
     # Create ALICE
     alice = ALICE3D(name="ALICE")
     alice.set_position(0, 0, 0)
-    alice.set_material(color="#00ff88")
+    alice.set_material(color="#ff00ff")
     
     # Create scene
     scene = ALICEScene(width=1920, height=1080)
@@ -749,6 +784,10 @@ if __name__ == "__main__":
     # Generate HTML viewer
     html = create_alice_viewer_html(scene)
     
+    html_path = "07_3D_ASSET_LIBRARY/alice_viewer.html"
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(html)
+
     print("✓ ALICE 3D Character System created")
     print(f"✓ Scene configuration saved")
-    print(f"✓ HTML viewer ready")
+    print(f"✓ HTML viewer ready at {html_path}")
