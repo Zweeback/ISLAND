@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import re
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import TypedDict
@@ -36,6 +37,11 @@ EXCLUDED_FILE_PATTERNS: list[str] = [
     ".env", "passwords", "id_rsa", "secret"
 ]
 
+_EXCLUDED_FILE_REGEX = re.compile(
+    '|'.join(re.escape(pattern) for pattern in EXCLUDED_FILE_PATTERNS),
+    re.IGNORECASE
+)
+
 class LocalIndexer:
     paths: list[Path]
 
@@ -46,11 +52,7 @@ class LocalIndexer:
         return dir_name in EXCLUDED_DIR_NAMES
 
     def should_exclude_file(self, file_name: str) -> bool:
-        lower_name = file_name.lower()
-        for pattern in EXCLUDED_FILE_PATTERNS:
-            if pattern in lower_name:
-                return True
-        return False
+        return bool(_EXCLUDED_FILE_REGEX.search(file_name))
 
     def scan(self) -> ScanReport:
         catalog: dict[str, list[FileEntry]] = {}
