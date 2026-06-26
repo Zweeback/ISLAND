@@ -19,13 +19,18 @@ def is_port_open(port: int) -> bool:
 def get_pid_by_port(port: int) -> int | None:
     # Use netstat/cmd to find PID on Windows
     import subprocess
+
+    if not isinstance(port, int) or not (1 <= port <= 65535):
+        return None
+
     try:
-        output = subprocess.check_output(f'netstat -ano | findstr LISTENING | findstr :{port}', shell=True).decode()
+        output = subprocess.check_output(['netstat', '-ano']).decode()
         for line in output.splitlines():
-            parts = line.strip().split()
-            if parts and parts[1].endswith(f":{port}"):
-                return int(parts[-1])
-    except:
+            if 'LISTENING' in line and f':{port}' in line:
+                parts = line.strip().split()
+                if len(parts) >= 5 and parts[1].endswith(f":{port}"):
+                    return int(parts[-1])
+    except Exception:
         pass
     return None
 
