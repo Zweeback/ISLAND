@@ -16,18 +16,37 @@ def is_port_open(port: int) -> bool:
         except:
             return False
 
+_PORT_TO_PID_CACHE = None
+
 def get_pid_by_port(port: int) -> int | None:
     # Use netstat/cmd to find PID on Windows
-    import subprocess
-    try:
-        output = subprocess.check_output(f'netstat -ano | findstr LISTENING | findstr :{port}', shell=True).decode()
-        for line in output.splitlines():
-            parts = line.strip().split()
-            if parts and parts[1].endswith(f":{port}"):
-                return int(parts[-1])
-    except:
-        pass
-    return None
+    # Optimized: calls netstat once and caches all listening ports
+    global _PORT_TO_PID_CACHE
+    if _PORT_TO_PID_CACHE is None:
+        _PORT_TO_PID_CACHE = {}
+        import subprocess
+        try:
+            output = subprocess.check_output('netstat -ano | findstr LISTENING', shell=True).decode()
+            for line in output.splitlines():
+                parts = line.strip().split()
+                # A typical listening line looks like:
+                #  TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       1124
+                # parts[1] is the local address
+                # parts[-1] is the PID
+                if len(parts) >= 5:
+                    local_address = parts[1]
+                    if ":" in local_address:
+                        port_str = local_address.rsplit(":", 1)[1]
+                        try:
+                            p = int(port_str)
+                            # the first PID found for a port is generally sufficient, but we just save it
+                            if p not in _PORT_TO_PID_CACHE:
+                                _PORT_TO_PID_CACHE[p] = int(parts[-1])
+                        except ValueError:
+                            pass
+        except:
+            pass
+    return _PORT_TO_PID_CACHE.get(port)
 
 def main():
     print("Running status probe...")
