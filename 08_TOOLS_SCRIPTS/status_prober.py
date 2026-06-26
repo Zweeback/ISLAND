@@ -7,46 +7,53 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STATUS_FILE = ROOT / "06_GATEWAY_LIVEFEED" / "service_status.jsonl"
 
+
 def is_port_open(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(1.0)
         try:
             s.connect(("127.0.0.1", port))
             return True
-        except:
+        except Exception:
             return False
+
 
 def get_pid_by_port(port: int) -> int | None:
     # Use netstat/cmd to find PID on Windows
     import subprocess
     try:
-        output = subprocess.check_output(f'netstat -ano | findstr LISTENING | findstr :{port}', shell=True).decode()
+        output = subprocess.check_output(
+            f'netstat -ano | findstr LISTENING | findstr :{port}', shell=True).decode()
         for line in output.splitlines():
             parts = line.strip().split()
             if parts and parts[1].endswith(f":{port}"):
                 return int(parts[-1])
-    except:
+    except Exception:
         pass
     return None
 
+
 def main():
     print("Running status probe...")
-    
+
     # 1. Check openclaw gateway (8766)
     gateway_open = is_port_open(8766)
     gateway_pid = get_pid_by_port(8766) if gateway_open else None
-    
+
     # 2. Check alice 3d (8421)
     alice_open = is_port_open(8421)
     alice_pid = get_pid_by_port(8421) if alice_open else None
 
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    expiry = (datetime.now(timezone.utc) + ValueError.__self__.__class__(days=1) if hasattr(ValueError, "__self__") else datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z") # wait, simpler:
+    expiry = (datetime.now(timezone.utc) + ValueError.__self__.__class__(days=1) if hasattr(ValueError,
+              # wait, simpler:
+                                                                                            "__self__") else datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z")
     import datetime as dt
-    expiry = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)).isoformat().replace("+00:00", "Z")
+    expiry = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)
+              ).isoformat().replace("+00:00", "Z")
 
     services = []
-    
+
     # gateway_openclaw
     if gateway_open:
         services.append({
@@ -90,7 +97,7 @@ def main():
             "claim_registry_refs": [],
             "expires_at": expiry
         })
-        
+
     # rag_retriever (built into gateway)
     if gateway_open:
         services.append({
@@ -204,8 +211,9 @@ def main():
     with open(STATUS_FILE, "w", encoding="utf-8") as f:
         for s in services:
             f.write(json.dumps(s) + "\n")
-            
+
     print(f"Status file {STATUS_FILE.name} updated successfully.")
+
 
 if __name__ == "__main__":
     main()

@@ -4,12 +4,14 @@ from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).parent.resolve()
 
+
 def init_workspace() -> None:
     """
     Checks the directory and ensures all required directories and files are present.
     """
-    print(f"Initializing/Verifying B.L.A.S.T. Workspace at {WORKSPACE_ROOT.as_posix()}...", file=sys.stderr)
-    
+    print(
+        f"Initializing/Verifying B.L.A.S.T. Workspace at {WORKSPACE_ROOT.as_posix()}...", file=sys.stderr)
+
     # Required directories
     dirs = [
         WORKSPACE_ROOT / ".context",
@@ -19,7 +21,8 @@ def init_workspace() -> None:
     ]
     for d in dirs:
         d.mkdir(parents=True, exist_ok=True)
-        print(f"Verified directory: {d.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
+        print(
+            f"Verified directory: {d.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
 
     # Required files list
     files = [
@@ -40,19 +43,22 @@ def init_workspace() -> None:
         WORKSPACE_ROOT / "tools/agent_loop.py",
         WORKSPACE_ROOT / "tools/xai_config.py"
     ]
-    
+
     all_ok = True
     for f in files:
         if f.exists():
-            print(f"Verified file: {f.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
+            print(
+                f"Verified file: {f.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
         else:
-            print(f"WARNING: Missing file: {f.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
+            print(
+                f"WARNING: Missing file: {f.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
             all_ok = False
-            
+
     if all_ok:
         print("\nAll workspace files verified successfully!", file=sys.stderr)
     else:
         print("\nSome files were missing. Run setup scripts to regenerate them.", file=sys.stderr)
+
 
 def run_agent() -> None:
     """
@@ -60,12 +66,15 @@ def run_agent() -> None:
     """
     loop_script = WORKSPACE_ROOT / "tools" / "agent_loop.py"
     if not loop_script.exists():
-        print(f"Error: Agent loop script not found at {loop_script.as_posix()}", file=sys.stderr)
+        print(
+            f"Error: Agent loop script not found at {loop_script.as_posix()}", file=sys.stderr)
         sys.exit(1)
-        
+
     print("Running B.L.A.S.T. Agent Loop...", file=sys.stderr)
-    res = subprocess.run([sys.executable, str(loop_script)], capture_output=False)
+    res = subprocess.run(
+        [sys.executable, str(loop_script)], capture_output=False)
     sys.exit(res.returncode)
+
 
 def run_scraper(scraper_name: str, args: list[str]) -> None:
     """
@@ -75,12 +84,14 @@ def run_scraper(scraper_name: str, args: list[str]) -> None:
         scraper_name = "opendata_dortmund"
     scraper_file = WORKSPACE_ROOT / "tools" / f"scraper_{scraper_name}.py"
     if not scraper_file.exists():
-        print(f"Error: Scraper scraper_{scraper_name}.py not found.", file=sys.stderr)
+        print(
+            f"Error: Scraper scraper_{scraper_name}.py not found.", file=sys.stderr)
         sys.exit(1)
-        
+
     cmd = [sys.executable, str(scraper_file)] + args
     res = subprocess.run(cmd)
     sys.exit(res.returncode)
+
 
 def run_inventory(args: list[str]) -> None:
     """
@@ -90,10 +101,11 @@ def run_inventory(args: list[str]) -> None:
     if not indexer_file.exists():
         print("Error: inventory_compiler.py not found.", file=sys.stderr)
         sys.exit(1)
-        
+
     cmd = [sys.executable, str(indexer_file)] + args
     res = subprocess.run(cmd)
     sys.exit(res.returncode)
+
 
 def main() -> None:
     if len(sys.argv) < 2:
@@ -104,9 +116,9 @@ def main() -> None:
         print("  scrape <name> <cmd> <arg> Directly run a scraper (opendata|digibib|scribd|statista|linkedin)")
         print("  inventory                 Directly compile local PC directory scan")
         sys.exit(1)
-        
+
     cmd = sys.argv[1]
-    
+
     if cmd == "init":
         init_workspace()
     elif cmd == "run":
@@ -121,6 +133,7 @@ def main() -> None:
     else:
         print(f"Unknown command: {cmd}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import os
 import re
 
+
 class LinkedInScraper:
     li_at: str | None
 
@@ -18,7 +19,8 @@ class LinkedInScraper:
         """
         headers: dict[str, str] = {}
         if not self.li_at:
-            url = "https://www.linkedin.com/jobs/search/?" + urllib.parse.urlencode({"keywords": query})
+            url = "https://www.linkedin.com/jobs/search/?" + \
+                urllib.parse.urlencode({"keywords": query})
             print(f"Querying LinkedIn public jobs: {url}", file=sys.stderr)
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -29,7 +31,8 @@ class LinkedInScraper:
                 "keywords": query,
                 "origin": "GLOBAL_SEARCH_HEADER"
             })
-            print(f"Querying authenticated LinkedIn API: {url}", file=sys.stderr)
+            print(
+                f"Querying authenticated LinkedIn API: {url}", file=sys.stderr)
             headers = {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 "Cookie": f"li_at={self.li_at}",
@@ -41,7 +44,7 @@ class LinkedInScraper:
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=15) as response:  # type: ignore
                 content = str(response.read().decode('utf-8'))  # type: ignore
-            
+
             records: list[dict[str, object]] = []
             if self.li_at:
                 data: dict[str, object] = json.loads(content)  # type: ignore
@@ -50,14 +53,18 @@ class LinkedInScraper:
                     for hit in elements_list:
                         if isinstance(hit, dict):  # type: ignore
                             title_text = hit.get("title", {})  # type: ignore
-                            title = title_text.get("text", "LinkedIn Entity") if isinstance(title_text, dict) else "LinkedIn Entity"  # type: ignore
-                            
-                            subline_text = hit.get("subline", {})  # type: ignore
-                            snippet = subline_text.get("text") if isinstance(subline_text, dict) else None  # type: ignore
-                            
+                            title = title_text.get("text", "LinkedIn Entity") if isinstance(
+                                title_text, dict) else "LinkedIn Entity"  # type: ignore
+
+                            subline_text = hit.get(
+                                "subline", {})  # type: ignore
+                            snippet = subline_text.get("text") if isinstance(
+                                subline_text, dict) else None  # type: ignore
+
                             records.append({
                                 "title": title,
-                                "url": hit.get("navigationUrl"),  # type: ignore
+                                # type: ignore
+                                "url": hit.get("navigationUrl"),
                                 "snippet": snippet
                             })
             else:
@@ -80,24 +87,26 @@ class LinkedInScraper:
         except Exception as e:
             return {"error": f"LinkedIn request failed: {e}"}
 
+
 def main() -> None:
     if len(sys.argv) < 3:
         print("Usage: python scraper_linkedin.py search <query>", file=sys.stderr)
         sys.exit(1)
-        
+
     cmd = sys.argv[1]
     arg = sys.argv[2]
-    
+
     li_at = os.environ.get("LINKEDIN_COOKIE_LI_AT")
-    
+
     scraper = LinkedInScraper(li_at)
-    
+
     if cmd == "search":
         output = scraper.search_jobs(arg)
     else:
         output = {"error": f"Unknown command {cmd}"}
-        
+
     print(json.dumps(output, indent=2, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     main()
