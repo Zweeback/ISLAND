@@ -1,3 +1,4 @@
+from __future__ import annotations
 import sys
 import subprocess
 from pathlib import Path
@@ -71,8 +72,14 @@ def run_scraper(scraper_name: str, args: list[str]) -> None:
     """
     Directly runs a scraper module from CLI.
     """
+    ALLOWED_SCRAPERS = {"opendata", "opendata_dortmund", "digibib", "scribd", "statista", "linkedin"}
+    if scraper_name not in ALLOWED_SCRAPERS:
+        print(f"Error: Invalid scraper name '{scraper_name}'. Allowed: {', '.join(ALLOWED_SCRAPERS)}", file=sys.stderr)
+        sys.exit(1)
+
     if scraper_name == "opendata":
         scraper_name = "opendata_dortmund"
+
     scraper_file = WORKSPACE_ROOT / "tools" / f"scraper_{scraper_name}.py"
     if not scraper_file.exists():
         print(f"Error: Scraper scraper_{scraper_name}.py not found.", file=sys.stderr)
