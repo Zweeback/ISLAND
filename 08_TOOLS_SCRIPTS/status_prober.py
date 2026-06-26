@@ -3,6 +3,7 @@ import json
 import socket
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 STATUS_FILE = ROOT / "06_GATEWAY_LIVEFEED" / "service_status.jsonl"
@@ -16,7 +17,7 @@ def is_port_open(port: int) -> bool:
         except:
             return False
 
-def get_pid_by_port(port: int) -> int | None:
+def get_pid_by_port(port: int) -> Optional[int]:
     # Use netstat/cmd to find PID on Windows
     import subprocess
     try:
