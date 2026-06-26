@@ -31,11 +31,11 @@ def get_pid_by_port(port: int) -> int | None:
 
 def main():
     print("Running status probe...")
-    
+
     # 1. Check openclaw gateway (8766)
     gateway_open = is_port_open(8766)
     gateway_pid = get_pid_by_port(8766) if gateway_open else None
-    
+
     # 2. Check alice 3d (8421)
     alice_open = is_port_open(8421)
     alice_pid = get_pid_by_port(8421) if alice_open else None
@@ -46,7 +46,7 @@ def main():
     expiry = (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1)).isoformat().replace("+00:00", "Z")
 
     services = []
-    
+
     # gateway_openclaw
     if gateway_open:
         services.append({
