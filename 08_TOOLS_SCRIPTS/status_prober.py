@@ -3,6 +3,7 @@ import json
 import socket
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 ROOT = Path(__file__).resolve().parents[1]
 STATUS_FILE = ROOT / "06_GATEWAY_LIVEFEED" / "service_status.jsonl"
@@ -16,7 +17,7 @@ def is_port_open(port: int) -> bool:
         except:
             return False
 
-def get_pid_by_port(port: int) -> int | None:
+def get_pid_by_port(port: int) -> Optional[int]:
     # Use netstat/cmd to find PID on Windows
     import subprocess
     try:
@@ -60,8 +61,8 @@ def main():
             "last_telemetry_timestamp": now,
             "last_successful_action": "heartbeat",
             "last_error": "none_observed",
-            "source_log": "C:\\Users\\derzw\\.gemini\\antigravity-ide\\brain\\b8f3f34d-97dc-437a-aaa6-82f8466d4c0f\\.system_generated\\tasks\\task-191.log",
-            "start_command": "C:\\Users\\derzw\\Sovereign\\START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1",
+            "source_log": None,
+            "start_command": str(Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"),
             "stop_command": f"taskkill /F /PID {gateway_pid}" if gateway_pid else "taskkill /F /IM python.exe",
             "depends_on": [],
             "e2e_test_id": "e2e-20260613-0001",
@@ -82,7 +83,7 @@ def main():
             "last_successful_action": None,
             "last_error": "port_closed",
             "source_log": None,
-            "start_command": "C:\\Users\\derzw\\Sovereign\\START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1",
+            "start_command": str(Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"),
             "stop_command": "taskkill /F /IM python.exe",
             "depends_on": [],
             "e2e_test_id": None,
@@ -104,8 +105,8 @@ def main():
             "last_telemetry_timestamp": now,
             "last_successful_action": "fts_search",
             "last_error": "none_observed",
-            "source_log": "C:\\Users\\derzw\\.gemini\\antigravity-ide\\brain\\b8f3f34d-97dc-437a-aaa6-82f8466d4c0f\\.system_generated\\tasks\\task-191.log",
-            "start_command": "C:\\Users\\derzw\\Sovereign\\START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1",
+            "source_log": None,
+            "start_command": str(Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"),
             "stop_command": f"taskkill /F /PID {gateway_pid}" if gateway_pid else "taskkill /F /IM python.exe",
             "depends_on": ["gateway_openclaw"],
             "e2e_test_id": "e2e-20260613-0002",
@@ -126,7 +127,7 @@ def main():
             "last_successful_action": None,
             "last_error": "gateway_offline",
             "source_log": None,
-            "start_command": "C:\\Users\\derzw\\Sovereign\\START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1",
+            "start_command": str(Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"),
             "stop_command": "taskkill /F /IM python.exe",
             "depends_on": ["gateway_openclaw"],
             "e2e_test_id": None,
@@ -170,8 +171,8 @@ def main():
             "last_telemetry_timestamp": now,
             "last_successful_action": "render",
             "last_error": "none_observed",
-            "source_log": "C:\\Users\\derzw\\.gemini\\antigravity-ide\\brain\\b8f3f34d-97dc-437a-aaa6-82f8466d4c0f\\.system_generated\\tasks\\task-244.log",
-            "start_command": "C:\\Users\\derzw\\Sovereign\\core\\alice_companion\\START_ULTRA_ALICE_3D.ps1",
+            "source_log": None,
+            "start_command": str(Path.home() / "Sovereign" / "core" / "alice_companion" / "START_ULTRA_ALICE_3D.ps1"),
             "stop_command": f"taskkill /F /PID {alice_pid}" if alice_pid else "taskkill /F /IM python.exe",
             "depends_on": ["gateway_openclaw"],
             "e2e_test_id": "e2e-20260613-0003",
@@ -192,7 +193,7 @@ def main():
             "last_successful_action": None,
             "last_error": "port_closed",
             "source_log": None,
-            "start_command": "C:\\Users\\derzw\\Sovereign\\core\\alice_companion\\START_ULTRA_ALICE_3D.ps1",
+            "start_command": str(Path.home() / "Sovereign" / "core" / "alice_companion" / "START_ULTRA_ALICE_3D.ps1"),
             "stop_command": "taskkill /F /IM python.exe",
             "depends_on": ["gateway_openclaw"],
             "e2e_test_id": None,
