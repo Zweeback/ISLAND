@@ -31,16 +31,21 @@ def get_pid_by_port(port: int) -> Optional[int]:
         pass
     return None
 
+def _check_service(port: int):
+    is_open = is_port_open(port)
+    pid = get_pid_by_port(port) if is_open else None
+    return is_open, pid
+
 def main():
     print("Running status probe...")
     
-    # 1. Check openclaw gateway (8766)
-    gateway_open = is_port_open(8766)
-    gateway_pid = get_pid_by_port(8766) if gateway_open else None
-    
-    # 2. Check alice 3d (8421)
-    alice_open = is_port_open(8421)
-    alice_pid = get_pid_by_port(8421) if alice_open else None
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        f_gateway = executor.submit(_check_service, 8766)
+        f_alice = executor.submit(_check_service, 8421)
+
+        gateway_open, gateway_pid = f_gateway.result()
+        alice_open, alice_pid = f_alice.result()
 
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     expiry = (datetime.now(timezone.utc) + ValueError.__self__.__class__(days=1) if hasattr(ValueError, "__self__") else datetime.now(timezone.utc)).isoformat().replace("+00:00", "Z") # wait, simpler:
