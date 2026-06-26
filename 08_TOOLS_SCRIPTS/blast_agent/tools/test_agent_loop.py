@@ -1,8 +1,8 @@
 import json
-import urllib.request
 from unittest.mock import MagicMock, patch
 
 from agent_loop import call_llm
+
 
 def test_call_llm_success():
     """Test the happy path where the LLM API returns a valid response."""
@@ -17,7 +17,8 @@ def test_call_llm_success():
     }
 
     mock_response = MagicMock()
-    mock_response.read.return_value = json.dumps(mock_response_data).encode("utf-8")
+    mock_response.read.return_value = json.dumps(
+        mock_response_data).encode("utf-8")
 
     mock_urlopen = MagicMock()
     mock_urlopen.__enter__.return_value = mock_response
@@ -27,6 +28,7 @@ def test_call_llm_success():
 
     assert result == "This is a mock response from the LLM."
 
+
 def test_call_llm_unexpected_format_missing_choices():
     """Test the case where the LLM API returns a response missing 'choices'."""
     mock_response_data = {
@@ -34,7 +36,8 @@ def test_call_llm_unexpected_format_missing_choices():
     }
 
     mock_response = MagicMock()
-    mock_response.read.return_value = json.dumps(mock_response_data).encode("utf-8")
+    mock_response.read.return_value = json.dumps(
+        mock_response_data).encode("utf-8")
 
     mock_urlopen = MagicMock()
     mock_urlopen.__enter__.return_value = mock_response
@@ -44,6 +47,7 @@ def test_call_llm_unexpected_format_missing_choices():
 
     expected_error = json.dumps({"error": "Unexpected LLM response format"})
     assert result == expected_error
+
 
 def test_call_llm_unexpected_format_empty_choices():
     """Test the case where the LLM API returns a response with an empty 'choices' list."""
@@ -52,7 +56,8 @@ def test_call_llm_unexpected_format_empty_choices():
     }
 
     mock_response = MagicMock()
-    mock_response.read.return_value = json.dumps(mock_response_data).encode("utf-8")
+    mock_response.read.return_value = json.dumps(
+        mock_response_data).encode("utf-8")
 
     mock_urlopen = MagicMock()
     mock_urlopen.__enter__.return_value = mock_response
@@ -62,6 +67,7 @@ def test_call_llm_unexpected_format_empty_choices():
 
     expected_error = json.dumps({"error": "Unexpected LLM response format"})
     assert result == expected_error
+
 
 def test_call_llm_unexpected_format_missing_message():
     """Test the case where the LLM API returns a response where the first choice is missing 'message'."""
@@ -76,7 +82,8 @@ def test_call_llm_unexpected_format_missing_message():
     }
 
     mock_response = MagicMock()
-    mock_response.read.return_value = json.dumps(mock_response_data).encode("utf-8")
+    mock_response.read.return_value = json.dumps(
+        mock_response_data).encode("utf-8")
 
     mock_urlopen = MagicMock()
     mock_urlopen.__enter__.return_value = mock_response
@@ -85,6 +92,7 @@ def test_call_llm_unexpected_format_missing_message():
         result = call_llm("dummy_api_key", "system_prompt", "user_prompt")
 
     assert result == ""
+
 
 def test_call_llm_unexpected_format_missing_content():
     """Test the case where the LLM API returns a response where the message is missing 'content'."""
@@ -99,7 +107,8 @@ def test_call_llm_unexpected_format_missing_content():
     }
 
     mock_response = MagicMock()
-    mock_response.read.return_value = json.dumps(mock_response_data).encode("utf-8")
+    mock_response.read.return_value = json.dumps(
+        mock_response_data).encode("utf-8")
 
     mock_urlopen = MagicMock()
     mock_urlopen.__enter__.return_value = mock_response
@@ -107,8 +116,10 @@ def test_call_llm_unexpected_format_missing_content():
     with patch("urllib.request.urlopen", return_value=mock_urlopen):
         result = call_llm("dummy_api_key", "system_prompt", "user_prompt")
 
-    # As per original code, `message.get("content", "")` returns `""` if missing
+    # As per original code, `message.get("content", "")` returns `""` if
+    # missing
     assert result == ""
+
 
 def test_call_llm_exception_handling():
     """Test the case where an exception is raised during the HTTP request."""
