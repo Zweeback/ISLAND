@@ -16,18 +16,29 @@ def is_port_open(port: int) -> bool:
         except:
             return False
 
+_PORT_TO_PID_CACHE = None
+
 def get_pid_by_port(port: int) -> int | None:
     # Use netstat/cmd to find PID on Windows
+    global _PORT_TO_PID_CACHE
     import subprocess
-    try:
-        output = subprocess.check_output(f'netstat -ano | findstr LISTENING | findstr :{port}', shell=True).decode()
-        for line in output.splitlines():
-            parts = line.strip().split()
-            if parts and parts[1].endswith(f":{port}"):
-                return int(parts[-1])
-    except:
-        pass
-    return None
+    if _PORT_TO_PID_CACHE is None:
+        _PORT_TO_PID_CACHE = {}
+        try:
+            output = subprocess.check_output('netstat -ano | findstr LISTENING', shell=True).decode()
+            for line in output.splitlines():
+                parts = line.strip().split()
+                if len(parts) >= 5:
+                    local_addr = parts[1]
+                    if ":" in local_addr:
+                        try:
+                            p = int(local_addr.rsplit(":", 1)[-1])
+                            _PORT_TO_PID_CACHE[p] = int(parts[-1])
+                        except ValueError:
+                            pass
+        except:
+            pass
+    return _PORT_TO_PID_CACHE.get(port)
 
 def main():
     print("Running status probe...")
