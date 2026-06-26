@@ -1,7 +1,7 @@
 import json
 import urllib.request
 import sys
-from typing import Any
+
 
 def call_xai(api_key: str, model: str, system_prompt: str, user_prompt: str) -> str:
     """
@@ -15,13 +15,15 @@ def call_xai(api_key: str, model: str, system_prompt: str, user_prompt: str) -> 
     }
 
     # Map "eve" to grok-beta (or grok-4 if that's what xAI goes by)
-    # The user mentioned grok-4 or grok-beta. They likely just provisioned the key and have no credits/access yet (which results in "Model not found" or "permission-denied" errors right now).
+    # The user mentioned grok-4 or grok-beta. They likely just provisioned the key
+    # and have no credits/access yet (which results in "Model not found" or
+    # "permission-denied" errors right now).
     # We will trust their requested model string "grok-beta" as requested.
     actual_model = model
     if model.lower() == "eve":
         actual_model = "grok-beta"
     elif model.lower() == "grok-4":
-        actual_model = "grok-beta" # mapping to current known endpoint just in case
+        actual_model = "grok-beta"  # mapping to current known endpoint just in case
 
     # xAI API is very similar to OpenAI's
     payload = {
