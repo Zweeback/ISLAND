@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import typing
 import socket
 from datetime import datetime, timezone
 from pathlib import Path
@@ -16,7 +17,7 @@ def is_port_open(port: int) -> bool:
         except:
             return False
 
-def get_pid_by_port(port: int) -> int | None:
+def get_pid_by_port(port: int) -> typing.Optional[int]:
     # Use netstat/cmd to find PID on Windows
     import subprocess
 
