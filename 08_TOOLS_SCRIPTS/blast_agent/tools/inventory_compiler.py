@@ -71,12 +71,12 @@ class LocalIndexer:
                     if self.should_exclude_file(file):
                         continue
                         
-                    file_path = Path(root) / file
+                    file_path = os.path.join(root, file)
                     try:
-                        stat = file_path.stat()
+                        stat = os.stat(file_path)
                         file_entries.append({
                             "name": file,
-                            "path": file_path.as_posix(),
+                            "path": file_path.replace("\\", "/"),
                             "size_bytes": stat.st_size,
                             "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()
                         })
