@@ -80,44 +80,44 @@ class ALICE3D:
         self.name = name
         self.model_path = model_path or "07_3D_ASSET_LIBRARY/alice.glb"
         self.texture_path = texture_path or "07_3D_ASSET_LIBRARY/alice_texture.png"
-        
+
         # Core transform properties
         self.position = Vector3(0, 0, 0)
         self.rotation = Rotation(0, 0, 0)
         self.scale = Vector3(1, 1, 1)
-        
+
         # Character state
         self.current_animation = AnimationType.IDLE
         self.animation_speed = 1.0
         self.animation_loop = False
         self.animation_progress = 0.0
-        
+
         # Material and appearance
         self.material = CharacterMaterial(color="#ff00ff")
         self.is_visible = True
         self.alpha_value = 1.0
-        
+
         # Movement and physics
         self.is_moving = False
         self.velocity = Vector3(0, 0, 0)
         self.max_speed = 5.0
         self.acceleration = 0.1
-        
+
         # Animation and dialogue
         self.is_talking = False
         self.current_dialogue = ""
         self.dialogue_duration = 0.0
         self.current_gesture = None
         self.gesture_intensity = 0.5
-        
+
         # Animation queues
         self.animation_queue: List[Tuple[AnimationType, float, bool]] = []
         self.dialogue_queue: List[Dict] = []
         self.gesture_queue: List[str] = []
-        
+
         # Keyframe animations
         self.keyframes: Dict[str, List[AnimationFrame]] = {}
-        
+
         # State tracking
         self.state_history: List[Dict] = []
         self.creation_time = datetime.now().isoformat()
@@ -149,7 +149,7 @@ class ALICE3D:
         """Animate character movement to target position"""
         animation = AnimationType.RUN if run else AnimationType.WALK
         self.animation_queue.append((animation, duration, True))
-        
+
         # Linear interpolation path
         steps = int(duration * 30)  # 30 FPS
         for i in range(steps):
@@ -157,7 +157,7 @@ class ALICE3D:
             x = self.position.x + (target_x - self.position.x) * t
             y = self.position.y + (target_y - self.position.y) * t
             z = self.position.z + (target_z - self.position.z) * t
-        
+
         self.position = Vector3(target_x, target_y, target_z)
         self.is_moving = False
         return self
@@ -173,11 +173,11 @@ class ALICE3D:
         self.is_talking = True
         if duration is None:
             duration = len(text) * 0.05  # Rough estimate: ~50ms per character
-        
+
         self.current_dialogue = text
         self.dialogue_duration = duration
         self.animation_queue.append((AnimationType.TALK, duration, False))
-        
+
         dialogue_entry = {
             "text": text,
             "duration": duration,
@@ -202,13 +202,13 @@ class ALICE3D:
             target.y - self.position.y,
             target.z - self.position.z
         )
-        
+
         # Calculate rotation angles
         import math
         yaw = math.atan2(direction.x, direction.z) * 180 / math.pi
         distance_xz = math.sqrt(direction.x**2 + direction.z**2)
         pitch = math.atan2(-direction.y, distance_xz) * 180 / math.pi
-        
+
         self.rotation = Rotation(pitch, yaw, 0)
         return self
 
@@ -362,7 +362,7 @@ class ALICEScene:
 def create_alice_viewer_html(scene: ALICEScene) -> str:
     """Generate interactive HTML viewer for ALICE with Three.js"""
     scene_data = scene.to_dict()
-    
+
     html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -379,7 +379,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             overflow: hidden;
         }}
         #canvas {{ display: block; width: 100%; height: 100%; }}
-        
+
         #ui {{
             position: absolute;
             top: 20px;
@@ -392,7 +392,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             border: 2px solid #ff00ff;
             box-shadow: 0 0 20px rgba(255, 0, 255, 0.3);
         }}
-        
+
         #stats {{
             position: absolute;
             top: 20px;
@@ -404,14 +404,14 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             border: 2px solid #ff00ff;
             font-family: monospace;
         }}
-        
+
         h1 {{
             color: #ff00ff;
             font-size: 18px;
             margin-bottom: 15px;
             text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
         }}
-        
+
         h2 {{
             color: #ff00ff;
             margin: 15px 0 10px 0;
@@ -419,23 +419,23 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             border-bottom: 1px solid #ff00ff;
             padding-bottom: 5px;
         }}
-        
+
         .info-line {{
             margin: 5px 0;
             display: flex;
             justify-content: space-between;
         }}
-        
+
         .label {{ color: #888; }}
         .value {{ color: #ff00ff; font-weight: bold; }}
-        
+
         .button-group {{
             display: grid;
             grid-template-columns: 1fr 1fr;
             gap: 8px;
             margin: 10px 0;
         }}
-        
+
         button {{
             background: rgba(255, 0, 255, 0.2);
             border: 1px solid #ff00ff;
@@ -448,17 +448,17 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             transition: all 0.3s;
             font-size: 12px;
         }}
-        
+
         button:hover {{
             background: rgba(255, 0, 255, 0.4);
             box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
             transform: scale(1.05);
         }}
-        
+
         button:active {{
             transform: scale(0.95);
         }}
-        
+
         input[type="text"] {{
             background: rgba(255, 0, 255, 0.1);
             border: 1px solid #ff00ff;
@@ -470,12 +470,12 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             font-family: monospace;
             font-size: 12px;
         }}
-        
+
         input[type="text"]:focus {{
             outline: none;
             box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
         }}
-        
+
         .dialogue-box {{
             background: rgba(255, 0, 255, 0.1);
             border-left: 3px solid #ff00ff;
@@ -489,10 +489,10 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
 </head>
 <body>
     <canvas id="canvas"></canvas>
-    
+
     <div id="ui">
         <h1>🤖 ALICE - Interactive Character</h1>
-        
+
         <h2>Character Status</h2>
         <div class="info-line">
             <span class="label">Name:</span>
@@ -506,7 +506,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             <span class="label">Position:</span>
             <span class="value" id="position-info">0.0, 0.0, 0.0</span>
         </div>
-        
+
         <h2>Animation Controls</h2>
         <div class="button-group">
             <button onclick="playAnim('idle')">IDLE</button>
@@ -516,12 +516,12 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             <button onclick="playAnim('wave')">WAVE</button>
             <button onclick="playAnim('think')">THINK</button>
         </div>
-        
+
         <h2>Dialogue</h2>
         <input type="text" id="dialogue-input" placeholder="What should ALICE say?">
         <button onclick="makeAliceTalk()" style="width: 100%; margin-top: 5px;">SAY</button>
         <div class="dialogue-box" id="dialogue-history"></div>
-        
+
         <h2>Appearance</h2>
         <div class="button-group">
             <button onclick="changeColor('#00ff88')">Green</button>
@@ -530,7 +530,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             <button onclick="changeColor('#ffff00')">Yellow</button>
         </div>
     </div>
-    
+
     <div id="stats">
         <div class="info-line">
             <span class="label">FPS:</span>
@@ -553,16 +553,16 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         let aliceMesh = null;
         let currentAnimation = 'idle';
         let animationTime = 0;
-        
+
         // Scene setup
         const canvas = document.getElementById('canvas');
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(sceneData.background);
-        
+
         const camera = new THREE.PerspectiveCamera(
-            75, 
-            window.innerWidth / window.innerHeight, 
-            0.1, 
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
             1000
         );
         camera.position.set(
@@ -575,17 +575,17 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             sceneData.camera.target.y,
             sceneData.camera.target.z
         );
-        
+
         const renderer = new THREE.WebGLRenderer({{ canvas, antialias: true, alpha: true }});
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFShadowShadowMap;
-        
+
         // Lighting setup
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambientLight);
-        
+
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
         directionalLight.position.set(10, 15, 10);
         directionalLight.shadow.mapSize.width = 2048;
@@ -593,10 +593,10 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         directionalLight.shadow.camera.far = 50;
         directionalLight.castShadow = true;
         scene.add(directionalLight);
-        
+
         // Ground
         const groundGeometry = new THREE.PlaneGeometry(100, 100);
-        const groundMaterial = new THREE.MeshStandardMaterial({{ 
+        const groundMaterial = new THREE.MeshStandardMaterial({{
             color: '#1a2a4a',
             roughness: 0.8,
             metalness: 0.1
@@ -605,10 +605,10 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         scene.add(ground);
-        
+
         // Create ALICE
         const aliceData = sceneData.alice;
-        
+
         const loader = new THREE.GLTFLoader();
         loader.load(aliceData.modelPath, function(gltf) {{
             aliceMesh = gltf.scene;
@@ -645,13 +645,13 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
         }}, undefined, function(error) {{
             console.error('An error happened while loading the model:', error);
         }});
-        
+
         // Animation functions
         function playAnim(anim) {{
             currentAnimation = anim;
             animationTime = 0;
             document.getElementById('anim-type').textContent = anim.toUpperCase();
-            
+
             if (!aliceMesh) return;
 
             switch(anim) {{
@@ -675,7 +675,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
                     break;
             }}
         }}
-        
+
         function makeAliceTalk() {{
             const input = document.getElementById('dialogue-input');
             const text = input.value.trim();
@@ -690,7 +690,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
                 input.value = '';
             }}
         }}
-        
+
         function changeColor(color) {{
             if (aliceMesh) {{
                 aliceMesh.traverse(function(child) {{
@@ -702,16 +702,16 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
                 }});
             }}
         }}
-        
+
         // Animation loop
         let frameCount = 0;
         let lastTime = Date.now();
-        
+
         function animate() {{
             requestAnimationFrame(animate);
-            
+
             animationTime += 0.016;
-            
+
             if (aliceMesh) {{
                 // Simple animations
                 if (currentAnimation === 'idle') {{
@@ -729,7 +729,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
                     aliceMesh.position.y.toFixed(2) + ', ' +
                     aliceMesh.position.z.toFixed(2);
             }}
-            
+
             // FPS counter
             frameCount++;
             const now = Date.now();
@@ -738,18 +738,18 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
                 frameCount = 0;
                 lastTime = now;
             }}
-            
+
             renderer.render(scene, camera);
         }}
         animate();
-        
+
         // Handle window resize
         window.addEventListener('resize', () => {{
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         }});
-        
+
         // Update time display
         setInterval(() => {{
             const now = new Date();
@@ -757,7 +757,7 @@ def create_alice_viewer_html(scene: ALICEScene) -> str:
             const m = String(now.getMinutes()).padStart(2, '0');
             document.getElementById('time-display').textContent = h + ':' + m;
         }}, 1000);
-        
+
         // Allow Enter key to talk
         document.getElementById('dialogue-input').addEventListener('keypress', (e) => {{
             if (e.key === 'Enter') makeAliceTalk();
@@ -774,20 +774,20 @@ if __name__ == "__main__":
     alice = ALICE3D(name="ALICE")
     alice.set_position(0, 0, 0)
     alice.set_material(color="#ff00ff")
-    
+
     # Create scene
     scene = ALICEScene(width=1920, height=1080)
     scene.add_alice(alice)
     scene.add_light("main", "directional", 10, 15, 10, 0.8)
     scene.add_light("fill", "point", -5, 5, 5, 0.4)
-    
+
     # Generate HTML viewer
     html = create_alice_viewer_html(scene)
-    
+
     html_path = "07_3D_ASSET_LIBRARY/alice_viewer.html"
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(html)
 
     print("✓ ALICE 3D Character System created")
-    print(f"✓ Scene configuration saved")
+    print("✓ Scene configuration saved")
     print(f"✓ HTML viewer ready at {html_path}")

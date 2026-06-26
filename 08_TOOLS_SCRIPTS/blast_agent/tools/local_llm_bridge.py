@@ -45,6 +45,7 @@ def query_ollama(system_prompt: str, user_prompt: str, model: str = "llama3") ->
         print(f"Ollama API Call failed: {e}", file=sys.stderr)
         return json.dumps({"error": f"Ollama Call failed: {e}"})
 
+
 def get_installed_models() -> list[str]:
     """
     Get a list of models currently installed in the local Ollama instance.
@@ -63,6 +64,7 @@ def get_installed_models() -> list[str]:
     except Exception as e:
         print(f"Failed to fetch Ollama models: {e}", file=sys.stderr)
         return []
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "list":
