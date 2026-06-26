@@ -18,10 +18,10 @@ class ScanReport(TypedDict):
     data: dict[str, list[FileEntry]]
 
 # Default folders to index
-DEFAULT_PATHS: list[Path] = [
-    Path("C:/Users/derzw/Desktop"),
-    Path("C:/Users/derzw/Downloads"),
-    Path("G:/Meine Ablage")
+_env_path = os.getenv("BLAST_SCAN_PATH")
+DEFAULT_PATHS: list[Path] = [Path(_env_path)] if _env_path else [
+    Path.home() / "Desktop",
+    Path.home() / "Downloads"
 ]
 
 # Strict folder exclusion names
@@ -104,7 +104,7 @@ def main() -> None:
     report = indexer.scan()
     
     # Save the index to .tmp folder inside blast_agent directory
-    tmp_dir = Path("c:/Users/derzw/Desktop/00_ZENTRALE_INSEL/08_TOOLS_SCRIPTS/blast_agent/.tmp")
+    tmp_dir = Path(__file__).resolve().parent.parent / ".tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
     
     out_file = tmp_dir / "local_inventory_index.json"
