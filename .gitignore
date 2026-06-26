@@ -53,3 +53,6 @@ lerna-debug.log*
 *.sln
 *.sw?
 __pycache__/
+bench_dir/
+benchmark_test_dir/
+benchmark.py
