@@ -2,6 +2,12 @@ import unittest
 from unittest.mock import patch, MagicMock
 import json
 import urllib.error
+import sys
+import os
+
+# Insert the current directory into sys.path so that local modules can be imported
+# even when this test is run via global pytest discovery.
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # Import the module to be tested
 from local_llm_bridge import query_ollama
