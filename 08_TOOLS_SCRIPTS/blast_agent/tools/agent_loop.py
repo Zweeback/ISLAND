@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+
 def load_env(env_path: Path) -> dict[str, str]:
     env = {}
     if env_path.exists():
@@ -21,6 +22,7 @@ def load_env(env_path: Path) -> dict[str, str]:
                         env[parts[0].strip()] = parts[1].strip()
     return env
 
+
 try:
     from local_llm_bridge import query_ollama
     from xai_config import call_xai
@@ -29,31 +31,29 @@ except ImportError:
     from tools.local_llm_bridge import query_ollama
     from tools.xai_config import call_xai
 
+
 def call_llm(api_key: str, system_prompt: str, user_prompt: str) -> str:
     """
     Direct HTTP request to OpenAI Chat Completions API using urllib.
     Requires no external packages. Returns JSON text or error string.
     """
     url = "https://api.openai.com/v1/chat/completions"
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
     payload = {
         "model": "gpt-4o-mini",
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ],
-        "temperature": 0.2
+        "temperature": 0.2,
     }
-    
+
     try:
         req = urllib.request.Request(
-            url, 
-            data=json.dumps(payload).encode("utf-8"), 
-            headers=headers, 
-            method="POST"
+            url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
         )
         with urllib.request.urlopen(req, timeout=30) as response:
             raw_data = response.read().decode("utf-8")
@@ -71,6 +71,7 @@ def call_llm(api_key: str, system_prompt: str, user_prompt: str) -> str:
         print(f"LLM API Call failed: {e}", file=sys.stderr)
         return json.dumps({"error": f"LLM Call failed: {e}"})
 
+
 class AgentLoop:
     root: Path
     env_path: Path
@@ -84,7 +85,7 @@ class AgentLoop:
         self.env = load_env(self.env_path)
         self.brief_path = self.root / ".context" / "active_brief.md"
         self.map_path = self.root / "gemini.md"
-        
+
     def read_file(self, path: Path) -> str:
         if path.exists():
             with open(path, "r", encoding="utf-8") as f:
@@ -105,14 +106,16 @@ class AgentLoop:
         tool_path = self.root / "tools" / f"{tool_name}.py"
         if not tool_path.exists():
             return json.dumps({"error": f"Tool {tool_name} not found"})
-            
+
         cmd = [sys.executable, str(tool_path)] + args
         print(f"Executing: {' '.join(cmd)}", file=sys.stderr)
         try:
             full_env = os.environ.copy()
             full_env.update(self.env)
-            
-            res = subprocess.run(cmd, capture_output=True, text=True, env=full_env, timeout=30)
+
+            res = subprocess.run(
+                cmd, capture_output=True, text=True, env=full_env, timeout=30
+            )
             if res.returncode != 0:
                 return json.dumps({"error": res.stderr})
             return res.stdout
@@ -123,13 +126,15 @@ class AgentLoop:
         llm_provider = self.env.get("LLM_PROVIDER", "openai").lower()
         llm_model = self.env.get("LLM_MODEL", "gpt-4o-mini")
 
-        openai_api_key = self.env.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+        openai_api_key = self.env.get("OPENAI_API_KEY") or os.environ.get(
+            "OPENAI_API_KEY"
+        )
         xai_api_key = self.env.get("XAI_API_KEY") or os.environ.get("XAI_API_KEY")
-        
+
         # Read files for LLM context
         brief = self.read_file(self.brief_path)
         gemini_map = self.read_file(self.map_path)
-        
+
         system_prompt = (
             "You are the B.L.A.S.T. Navigation Agent (Layer 2). You read the active brief and gemini.md "
             "and suggest the next deterministic python tool (Layer 3) to execute. "
@@ -140,11 +145,13 @@ class AgentLoop:
             "4. 'reason': brief explanation of why this step is proposed.\n"
             "Do not include any other markdown prose in your reply, just the JSON block."
         )
-        
-        user_prompt = f"Active Brief:\n{brief}\n\nProject Map (gemini.md):\n{gemini_map}\n"
+
+        user_prompt = (
+            f"Active Brief:\n{brief}\n\nProject Map (gemini.md):\n{gemini_map}\n"
+        )
         if user_instruction:
             user_prompt += f"\nUser Directive:\n{user_instruction}\n"
-            
+
         use_local_llm = self.env.get("USE_LOCAL_LLM", "false").lower() == "true"
 
         print(f"Reasoning with LLM ({llm_provider} / {llm_model})...", file=sys.stderr)
@@ -160,17 +167,22 @@ class AgentLoop:
             decision_text = call_llm(openai_api_key, system_prompt, user_prompt)
         else:
             # Fallback to local / dry-run if no valid config
-            print("No valid API key found or use_local_llm not set. Trying local Ollama...", file=sys.stderr)
+            print(
+                "No valid API key found or use_local_llm not set. Trying local Ollama...",
+                file=sys.stderr,
+            )
             decision_text = query_ollama(system_prompt, user_prompt)
             if "error" in decision_text:
                 print("Local LLM failed, running dry-run mode...", file=sys.stderr)
-                decision_text = json.dumps({
-                    "action": "execute_tool",
-                    "tool_name": "scraper_opendata_dortmund",
-                    "arguments": ["search_datasets", "Bibliotheken"],
-                    "reason": "Fallback dry-run."
-                })
-            
+                decision_text = json.dumps(
+                    {
+                        "action": "execute_tool",
+                        "tool_name": "scraper_opendata_dortmund",
+                        "arguments": ["search_datasets", "Bibliotheken"],
+                        "reason": "Fallback dry-run.",
+                    }
+                )
+
         # Clean potential markdown fences
         decision_text = decision_text.strip()
         if decision_text.startswith("```"):
@@ -178,46 +190,51 @@ class AgentLoop:
             if decision_text.startswith("json"):
                 decision_text = decision_text[4:]
             decision_text = decision_text.strip()
-            
+
         try:
             decision = json.loads(decision_text)
         except Exception as e:
-            return {"error": f"Failed to parse LLM decision JSON: {e}", "raw": decision_text}
-            
+            return {
+                "error": f"Failed to parse LLM decision JSON: {e}",
+                "raw": decision_text,
+            }
+
         action = decision.get("action")
         if action == "execute_tool":
             tool_name = str(decision.get("tool_name", ""))
             args_list = decision.get("arguments", [])
             args = [str(a) for a in args_list] if isinstance(args_list, list) else []
-            
+
             # Execute tool
             output = self.execute_tool(tool_name, args)
-            
+
             # Update log in gemini.md
             log_entry = (
                 f"\n* **{datetime.now(timezone.utc).isoformat()}**: Executed {tool_name} with {args}. "
                 f"Reason: {decision.get('reason')}\n"
             )
             self.write_file(self.map_path, gemini_map.rstrip() + "\n" + log_entry)
-            
+
             return {
                 "status": "success",
                 "tool": tool_name,
                 "arguments": args,
-                "output": output
+                "output": output,
             }
         else:
             return {
                 "status": "ended",
                 "action": action,
-                "reason": decision.get("reason")
+                "reason": decision.get("reason"),
             }
+
 
 def main() -> None:
     workspace_root = Path(__file__).parent.parent.resolve()
     loop = AgentLoop(workspace_root)
     res = loop.run_step()
     print(json.dumps(res, indent=2, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     main()

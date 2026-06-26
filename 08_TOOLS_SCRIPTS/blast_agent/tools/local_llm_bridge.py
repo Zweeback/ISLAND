@@ -10,19 +10,15 @@ def query_ollama(system_prompt: str, user_prompt: str, model: str = "llama3") ->
     Direct HTTP request to local Ollama API via /api/chat.
     """
     url = "http://localhost:11434/api/chat"
-    headers = {
-        "Content-Type": "application/json"
-    }
+    headers = {"Content-Type": "application/json"}
     payload = {
         "model": model,
         "messages": [
             {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
+            {"role": "user", "content": user_prompt},
         ],
         "stream": False,
-        "options": {
-            "temperature": 0.2
-        }
+        "options": {"temperature": 0.2},
     }
 
     try:
@@ -30,7 +26,7 @@ def query_ollama(system_prompt: str, user_prompt: str, model: str = "llama3") ->
             url,
             data=json.dumps(payload).encode("utf-8"),
             headers=headers,
-            method="POST"
+            method="POST",
         )
         with urllib.request.urlopen(req, timeout=120) as response:
             raw_data = response.read().decode("utf-8")
@@ -45,6 +41,7 @@ def query_ollama(system_prompt: str, user_prompt: str, model: str = "llama3") ->
     except Exception as e:
         print(f"Ollama API Call failed: {e}", file=sys.stderr)
         return json.dumps({"error": f"Ollama Call failed: {e}"})
+
 
 def get_installed_models() -> list[str]:
     """
@@ -64,6 +61,7 @@ def get_installed_models() -> list[str]:
     except Exception as e:
         print(f"Failed to fetch Ollama models: {e}", file=sys.stderr)
         return []
+
 
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "list":
