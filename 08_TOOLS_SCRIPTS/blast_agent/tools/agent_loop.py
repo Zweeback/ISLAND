@@ -3,6 +3,7 @@ import sys
 import json
 import urllib.request
 import subprocess
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -97,6 +98,9 @@ class AgentLoop:
         """
         Executes a Python tool under tools/ via subprocess.
         """
+        if not re.match(r"^[a-zA-Z0-9_]+$", tool_name):
+            return json.dumps({"error": f"Invalid tool name: {tool_name}"})
+
         tool_path = self.root / "tools" / f"{tool_name}.py"
         if not tool_path.exists():
             return json.dumps({"error": f"Tool {tool_name} not found"})
