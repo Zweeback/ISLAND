@@ -6,7 +6,6 @@ This script validates JSONL manifests and service status records. It is small on
 purpose: the first enforcement layer should be boring, local, and auditable.
 """
 
-from __future__ import annotations
 
 import argparse
 import json
