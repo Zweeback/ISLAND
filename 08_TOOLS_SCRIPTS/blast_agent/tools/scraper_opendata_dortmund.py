@@ -4,11 +4,11 @@ import json
 import urllib.request
 import urllib.parse
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Optional
 
 BASE_URL = "https://open-data.dortmund.de/api/explore/v2.1"
 
-def query_opendata(endpoint: str, params: dict[str, Any] | None = None) -> Any:
+def query_opendata(endpoint: str, params: Optional[dict[str, Any]] = None) -> Any:
     url = f"{BASE_URL}/{endpoint}"
     if params:
         url += "?" + urllib.parse.urlencode(params)
