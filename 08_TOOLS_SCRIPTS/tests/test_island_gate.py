@@ -4,7 +4,6 @@ import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pytest
 
 # Add directory to sys.path to import island_gate
 sys.path.append(os.path.abspath("08_TOOLS_SCRIPTS"))
@@ -21,13 +20,15 @@ def valid_manifest_item(record_id="test-1"):
     item = {field: f"dummy_{field}" for field in REQUIRED_MANIFEST_FIELDS}
 
     # Overwrite specific fields that have validation rules
-    item.update({
-        "id": record_id,
-        "rag_allowed": False,
-        "livefeed_allowed": False,
-        "lifecycle_state": "MIGRATED",
-        "depends_on": [],
-    })
+    item.update(
+        {
+            "id": record_id,
+            "rag_allowed": False,
+            "livefeed_allowed": False,
+            "lifecycle_state": "MIGRATED",
+            "depends_on": [],
+        }
+    )
     return item
 
 
@@ -112,7 +113,7 @@ def test_validate_manifest_livefeed_constraints(tmp_path: Path):
     """Test constraints when livefeed_allowed=True."""
     item = valid_manifest_item()
     item["livefeed_allowed"] = True
-    item["risk_class"] = "private" # In BLOCKED_RISK
+    item["risk_class"] = "private"  # In BLOCKED_RISK
 
     manifest_path = create_manifest(tmp_path, [item])
     errors = validate_manifest(manifest_path)
@@ -130,7 +131,9 @@ def test_validate_manifest_active_state_constraints(tmp_path: Path):
     item["verification_evidence"] = ""
     manifest_path = create_manifest(tmp_path, [item])
     errors = validate_manifest(manifest_path)
-    assert any("ACTIVE requires last_verified and verification_evidence" in e for e in errors)
+    assert any(
+        "ACTIVE requires last_verified and verification_evidence" in e for e in errors
+    )
 
     # Verification expired
     item["last_verified"] = "2023-01-01T00:00:00Z"
@@ -175,13 +178,12 @@ def test_iter_jsonl_missing_file(tmp_path):
     assert len(errors) == 1
     assert errors[0] == f"missing file: {missing_file}"
 
+
 def test_iter_jsonl_valid(tmp_path):
     valid_file = tmp_path / "valid.jsonl"
     valid_file.write_text(
-        '{"id": "1", "name": "foo"}\n'
-        '\n'
-        '{"id": "2", "name": "bar"}\n',
-        encoding="utf-8"
+        '{"id": "1", "name": "foo"}\n' "\n" '{"id": "2", "name": "bar"}\n',
+        encoding="utf-8",
     )
     records, errors = iter_jsonl(valid_file)
     assert errors == []
@@ -189,13 +191,11 @@ def test_iter_jsonl_valid(tmp_path):
     assert records[0] == {"id": "1", "name": "foo"}
     assert records[1] == {"id": "2", "name": "bar"}
 
+
 def test_iter_jsonl_invalid_json(tmp_path):
     invalid_file = tmp_path / "invalid.jsonl"
     invalid_file.write_text(
-        '{"id": "1"}\n'
-        '{"id": "2", "name": foo}\n'
-        '{"id": "3"}\n',
-        encoding="utf-8"
+        '{"id": "1"}\n' '{"id": "2", "name": foo}\n' '{"id": "3"}\n', encoding="utf-8"
     )
     records, errors = iter_jsonl(invalid_file)
     assert len(records) == 2
@@ -204,14 +204,12 @@ def test_iter_jsonl_invalid_json(tmp_path):
     assert len(errors) == 1
     assert "invalid.jsonl:2: invalid json" in errors[0]
 
+
 def test_iter_jsonl_not_object(tmp_path):
     not_object_file = tmp_path / "not_object.jsonl"
     not_object_file.write_text(
-        '{"id": "1"}\n'
-        '["not", "an", "object"]\n'
-        '"just a string"\n'
-        '{"id": "2"}\n',
-        encoding="utf-8"
+        '{"id": "1"}\n' '["not", "an", "object"]\n' '"just a string"\n' '{"id": "2"}\n',
+        encoding="utf-8",
     )
     records, errors = iter_jsonl(not_object_file)
     assert len(records) == 2

@@ -7,11 +7,13 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import TypedDict
 
+
 class FileEntry(TypedDict):
     name: str
     path: str
     size_bytes: int
     modified: str
+
 
 class ScanReport(TypedDict):
     catalog_type: str
@@ -19,29 +21,38 @@ class ScanReport(TypedDict):
     scan_roots: list[str]
     data: dict[str, list[FileEntry]]
 
+
 # Default folders to index
 _env_path = os.getenv("BLAST_SCAN_PATH")
-DEFAULT_PATHS: list[Path] = [Path(_env_path)] if _env_path else [
-    Path.home() / "Desktop",
-    Path.home() / "Downloads"
-]
+DEFAULT_PATHS: list[Path] = (
+    [Path(_env_path)]
+    if _env_path
+    else [Path.home() / "Desktop", Path.home() / "Downloads"]
+)
 
 # Strict folder exclusion names
 EXCLUDED_DIR_NAMES: set[str] = {
-    "node_modules", "venv", ".venv", ".git", ".ssh", "AppData",
-    "Program Files", "Program Files (x86)", "Windows", "System32",
-    ".gemini", ".continue"
+    "node_modules",
+    "venv",
+    ".venv",
+    ".git",
+    ".ssh",
+    "AppData",
+    "Program Files",
+    "Program Files (x86)",
+    "Windows",
+    "System32",
+    ".gemini",
+    ".continue",
 }
 
 # Strict file exclusion prefixes/suffixes
-EXCLUDED_FILE_PATTERNS: list[str] = [
-    ".env", "passwords", "id_rsa", "secret"
-]
+EXCLUDED_FILE_PATTERNS: list[str] = [".env", "passwords", "id_rsa", "secret"]
 
 _EXCLUDED_FILE_REGEX = re.compile(
-    '|'.join(re.escape(pattern) for pattern in EXCLUDED_FILE_PATTERNS),
-    re.IGNORECASE
+    "|".join(re.escape(pattern) for pattern in EXCLUDED_FILE_PATTERNS), re.IGNORECASE
 )
+
 
 class LocalIndexer:
     paths: list[Path]
@@ -57,71 +68,82 @@ class LocalIndexer:
 
     def scan(self) -> ScanReport:
         catalog: dict[str, list[FileEntry]] = {}
-        
+
         for root_path in self.paths:
             if not root_path.exists():
                 print(f"Path does not exist: {root_path}", file=sys.stderr)
                 continue
-                
+
             print(f"Scanning directory: {root_path}", file=sys.stderr)
             file_entries: list[FileEntry] = []
-            
+
             for root, dirs, files in os.walk(root_path):
                 # Modify dirs in-place to skip excluded directories during walk
                 dirs[:] = [d for d in dirs if not self.should_exclude_dir(d)]
-                
+
                 for file in files:
                     if self.should_exclude_file(file):
                         continue
-                        
+
                     file_path = os.path.join(root, file)
                     try:
                         stat = os.stat(file_path)
-                        file_entries.append({
-                            "name": file,
-                            "path": file_path.replace("\\", "/"),
-                            "size_bytes": stat.st_size,
-                            "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat()
-                        })
+                        file_entries.append(
+                            {
+                                "name": file,
+                                "path": file_path.replace("\\", "/"),
+                                "size_bytes": stat.st_size,
+                                "modified": datetime.fromtimestamp(
+                                    stat.st_mtime, timezone.utc
+                                ).isoformat(),
+                            }
+                        )
                     except Exception as e:
                         # Skip files that we can't access
-                        print(f"Skipping inaccessible file {file}: {e}", file=sys.stderr)
+                        print(
+                            f"Skipping inaccessible file {file}: {e}", file=sys.stderr
+                        )
                         continue
-                        
+
             catalog[root_path.as_posix()] = file_entries
-            
+
         return {
             "catalog_type": "local_pc_inventory",
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "scan_roots": [p.as_posix() for p in self.paths],
-            "data": catalog
+            "data": catalog,
         }
+
 
 def main() -> None:
     # Use default paths or optional args
     paths_to_scan = DEFAULT_PATHS
     if len(sys.argv) > 1:
         paths_to_scan = [Path(p) for p in sys.argv[1:]]
-        
+
     indexer = LocalIndexer(paths_to_scan)
     report = indexer.scan()
-    
+
     # Save the index to .tmp folder inside blast_agent directory
     tmp_dir = Path(__file__).resolve().parent.parent / ".tmp"
     tmp_dir.mkdir(parents=True, exist_ok=True)
-    
+
     out_file = tmp_dir / "local_inventory_index.json"
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
-        
-    print(f"Successfully compiled local inventory scan to {out_file.as_posix()}", file=sys.stderr)
+
+    print(
+        f"Successfully compiled local inventory scan to {out_file.as_posix()}",
+        file=sys.stderr,
+    )
     # Print high level stats to stdout
     summary = {
         "roots_scanned": len(report["scan_roots"]),
         "total_files_indexed": sum(len(files) for files in report["data"].values()),
-        "output_path": out_file.as_posix()
+        "output_path": out_file.as_posix(),
     }
     print(json.dumps(summary, indent=2))
+
 
 if __name__ == "__main__":
     main()

@@ -8,6 +8,7 @@ sys.path.append(str(workspace_root / "tools"))
 
 from agent_loop import AgentLoop
 
+
 def test_execute_tool_validation():
     print("Testing tool_name validation in agent_loop.py")
     loop = AgentLoop(workspace_root)
@@ -40,8 +41,11 @@ def test_execute_tool_validation():
             print(f"❌ Invalid tool name was not rejected correctly. Got: {result}")
             sys.exit(1)
     except json.JSONDecodeError:
-        print(f"❌ Invalid tool name was not rejected correctly (returned non-JSON). Got: {result}")
+        print(
+            f"❌ Invalid tool name was not rejected correctly (returned non-JSON). Got: {result}"
+        )
         sys.exit(1)
+
 
 if __name__ == "__main__":
     test_execute_tool_validation()

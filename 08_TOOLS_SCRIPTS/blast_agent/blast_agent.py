@@ -5,18 +5,22 @@ from pathlib import Path
 
 WORKSPACE_ROOT = Path(__file__).parent.resolve()
 
+
 def init_workspace() -> None:
     """
     Checks the directory and ensures all required directories and files are present.
     """
-    print(f"Initializing/Verifying B.L.A.S.T. Workspace at {WORKSPACE_ROOT.as_posix()}...", file=sys.stderr)
-    
+    print(
+        f"Initializing/Verifying B.L.A.S.T. Workspace at {WORKSPACE_ROOT.as_posix()}...",
+        file=sys.stderr,
+    )
+
     # Required directories
     dirs = [
         WORKSPACE_ROOT / ".context",
         WORKSPACE_ROOT / "architecture",
         WORKSPACE_ROOT / "tools",
-        WORKSPACE_ROOT / ".tmp"
+        WORKSPACE_ROOT / ".tmp",
     ]
     for d in dirs:
         d.mkdir(parents=True, exist_ok=True)
@@ -39,21 +43,28 @@ def init_workspace() -> None:
         WORKSPACE_ROOT / "tools/scraper_linkedin.py",
         WORKSPACE_ROOT / "tools/inventory_compiler.py",
         WORKSPACE_ROOT / "tools/agent_loop.py",
-        WORKSPACE_ROOT / "tools/xai_config.py"
+        WORKSPACE_ROOT / "tools/xai_config.py",
     ]
-    
+
     all_ok = True
     for f in files:
         if f.exists():
             print(f"Verified file: {f.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
         else:
-            print(f"WARNING: Missing file: {f.relative_to(WORKSPACE_ROOT)}", file=sys.stderr)
+            print(
+                f"WARNING: Missing file: {f.relative_to(WORKSPACE_ROOT)}",
+                file=sys.stderr,
+            )
             all_ok = False
-            
+
     if all_ok:
         print("\nAll workspace files verified successfully!", file=sys.stderr)
     else:
-        print("\nSome files were missing. Run setup scripts to regenerate them.", file=sys.stderr)
+        print(
+            "\nSome files were missing. Run setup scripts to regenerate them.",
+            file=sys.stderr,
+        )
+
 
 def run_agent() -> None:
     """
@@ -61,20 +72,34 @@ def run_agent() -> None:
     """
     loop_script = WORKSPACE_ROOT / "tools" / "agent_loop.py"
     if not loop_script.exists():
-        print(f"Error: Agent loop script not found at {loop_script.as_posix()}", file=sys.stderr)
+        print(
+            f"Error: Agent loop script not found at {loop_script.as_posix()}",
+            file=sys.stderr,
+        )
         sys.exit(1)
-        
+
     print("Running B.L.A.S.T. Agent Loop...", file=sys.stderr)
     res = subprocess.run([sys.executable, str(loop_script)], capture_output=False)
     sys.exit(res.returncode)
+
 
 def run_scraper(scraper_name: str, args: list[str]) -> None:
     """
     Directly runs a scraper module from CLI.
     """
-    ALLOWED_SCRAPERS = {"opendata", "opendata_dortmund", "digibib", "scribd", "statista", "linkedin"}
+    ALLOWED_SCRAPERS = {
+        "opendata",
+        "opendata_dortmund",
+        "digibib",
+        "scribd",
+        "statista",
+        "linkedin",
+    }
     if scraper_name not in ALLOWED_SCRAPERS:
-        print(f"Error: Invalid scraper name '{scraper_name}'. Allowed: {', '.join(ALLOWED_SCRAPERS)}", file=sys.stderr)
+        print(
+            f"Error: Invalid scraper name '{scraper_name}'. Allowed: {', '.join(ALLOWED_SCRAPERS)}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if scraper_name == "opendata":
@@ -84,10 +109,11 @@ def run_scraper(scraper_name: str, args: list[str]) -> None:
     if not scraper_file.exists():
         print(f"Error: Scraper scraper_{scraper_name}.py not found.", file=sys.stderr)
         sys.exit(1)
-        
+
     cmd = [sys.executable, str(scraper_file)] + args
     res = subprocess.run(cmd)
     sys.exit(res.returncode)
+
 
 def run_inventory(args: list[str]) -> None:
     """
@@ -97,10 +123,11 @@ def run_inventory(args: list[str]) -> None:
     if not indexer_file.exists():
         print("Error: inventory_compiler.py not found.", file=sys.stderr)
         sys.exit(1)
-        
+
     cmd = [sys.executable, str(indexer_file)] + args
     res = subprocess.run(cmd)
     sys.exit(res.returncode)
+
 
 def main() -> None:
     if len(sys.argv) < 2:
@@ -108,19 +135,23 @@ def main() -> None:
         print("Commands:")
         print("  init                      Verify and initialize workspace structure")
         print("  run                       Run the autonomous agent loop")
-        print("  scrape <name> <cmd> <arg> Directly run a scraper (opendata|digibib|scribd|statista|linkedin)")
+        print(
+            "  scrape <name> <cmd> <arg> Directly run a scraper (opendata|digibib|scribd|statista|linkedin)"
+        )
         print("  inventory                 Directly compile local PC directory scan")
         sys.exit(1)
-        
+
     cmd = sys.argv[1]
-    
+
     if cmd == "init":
         init_workspace()
     elif cmd == "run":
         run_agent()
     elif cmd == "scrape":
         if len(sys.argv) < 3:
-            print("Usage: python blast_agent.py scrape <opendata|digibib|scribd|statista|linkedin> <scraper_args...>")
+            print(
+                "Usage: python blast_agent.py scrape <opendata|digibib|scribd|statista|linkedin> <scraper_args...>"
+            )
             sys.exit(1)
         run_scraper(sys.argv[2], sys.argv[3:])
     elif cmd == "inventory":
@@ -128,6 +159,7 @@ def main() -> None:
     else:
         print(f"Unknown command: {cmd}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
