@@ -44,6 +44,16 @@ Welcome to the **Zentrale Insel Master Workspace**. This document serves as the 
 
 ---
 
+
+### Gemini / Antigravity Managed Apps
+The system catalogs and manages a suite of applications generated via Gemini/Antigravity, ensuring they are integrated into the master workspace. These include:
+- **Game Dev & Simulation**: GTA Dortmund (2D canvas sandbox), RealityForge 3D, Massive Multiplayer Laser Tag, Synthwave Space
+- **Tools & Productivity**: Promtedex, ScriptBoard AI, DevSkills Cockpit, Forensik-Dashboard, Gemini OS
+- **Creative & Audio**: Music Mashup Studio, Lyria Studio, AI Talk Radio, EchoPaths, PromptDJ
+- **3D & Spatial**: FeedNoodle Spatial Browser, 3D Knowledge Graph, Aura AI Companion, Gothic Witch and Caregiver 3D Companion, Bitscape Sandbox
+
+All applications are indexed in the `03_MANIFESTE_INVENTAR/island_manifest.jsonl` under the `code_project` artifact family.
+
 ## 3. Digibib Integration Critical Analysis
 
 * **How it works**: Digibib Dortmund (`stlb-dortmund.digibib.net`) runs on the hbz IntrOX Metasearch platform. There is no official public REST API for direct catalog search or user account manipulation.

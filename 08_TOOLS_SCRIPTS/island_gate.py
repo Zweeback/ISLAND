@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 #!/usr/bin/env python3
 """Minimal gatekeeper for the Zentrale Insel.
 
@@ -7,12 +8,11 @@ purpose: the first enforcement layer should be boring, local, and auditable.
 """
 
 
-import argparse
-import json
-from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any
-
+import argparse  # noqa: E402
+import json  # noqa: E402
+from datetime import datetime, timezone  # noqa: E402
+from pathlib import Path  # noqa: E402
+from typing import Any  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "03_MANIFESTE_INVENTAR" / "island_manifest.jsonl"
@@ -126,20 +126,35 @@ def validate_manifest(path: Path) -> list[str]:
 
         if item.get("rag_allowed") is True:
             if item.get("risk_class") not in SAFE_RAG_RISK:
-                errors.append(f"{record_id}: rag_allowed=true with unsafe risk_class={item.get('risk_class')}")
+                errors.append(
+                    f"{record_id}: rag_allowed=true with unsafe risk_class={item.get('risk_class')}"
+                )
             if item.get("trust_level") not in SAFE_RAG_TRUST:
-                errors.append(f"{record_id}: rag_allowed=true with insufficient trust_level={item.get('trust_level')}")
+                errors.append(
+                    f"{record_id}: rag_allowed=true with insufficient trust_level={item.get('trust_level')}"
+                )
             if item.get("lifecycle_state") not in ACTIVE_STATES:
-                errors.append(f"{record_id}: rag_allowed=true before verified lifecycle state")
+                errors.append(
+                    f"{record_id}: rag_allowed=true before verified lifecycle state"
+                )
             if item.get("verification_method") in (None, "", "not_verified"):
-                errors.append(f"{record_id}: rag_allowed=true without verification_method")
+                errors.append(
+                    f"{record_id}: rag_allowed=true without verification_method"
+                )
 
-        if item.get("livefeed_allowed") is True and item.get("risk_class") in BLOCKED_RISK:
-            errors.append(f"{record_id}: livefeed_allowed=true with blocked risk_class={item.get('risk_class')}")
+        if (
+            item.get("livefeed_allowed") is True
+            and item.get("risk_class") in BLOCKED_RISK
+        ):
+            errors.append(
+                f"{record_id}: livefeed_allowed=true with blocked risk_class={item.get('risk_class')}"
+            )
 
         if item.get("lifecycle_state") == "ACTIVE":
             if not item.get("last_verified") or not item.get("verification_evidence"):
-                errors.append(f"{record_id}: ACTIVE requires last_verified and verification_evidence")
+                errors.append(
+                    f"{record_id}: ACTIVE requires last_verified and verification_evidence"
+                )
             expiry = parse_time(item.get("verification_expiry"))
             if expiry and expiry < datetime.now(expiry.tzinfo or timezone.utc):
                 errors.append(f"{record_id}: ACTIVE verification is expired")
@@ -158,7 +173,9 @@ def validate_manifest(path: Path) -> list[str]:
             if dep_state is None:
                 errors.append(f"{record_id}: dependency not found: {dep}")
             elif dep_state not in ACTIVE_STATES:
-                errors.append(f"{record_id}: dependency {dep} is not verified/active: {dep_state}")
+                errors.append(
+                    f"{record_id}: dependency {dep} is not verified/active: {dep_state}"
+                )
     return errors
 
 
@@ -173,7 +190,9 @@ def validate_status(path: Path) -> list[str]:
         if status not in VALID_STATUS:
             errors.append(f"{service_id}: invalid status={status}")
         if status == "online_partial":
-            errors.append(f"{service_id}: online_partial is forbidden; use unverified or degraded")
+            errors.append(
+                f"{service_id}: online_partial is forbidden; use unverified or degraded"
+            )
         if status == "online_verified":
             required_for_online = [
                 "process",
@@ -192,9 +211,14 @@ def validate_status(path: Path) -> list[str]:
                 if item.get(field) in (None, "", []):
                     errors.append(f"{service_id}: online_verified requires {field}")
         expiry = parse_time(item.get("expires_at"))
-        if status == "online_verified" and expiry and expiry < datetime.now(expiry.tzinfo or timezone.utc):
+        if (
+            status == "online_verified"
+            and expiry
+            and expiry < datetime.now(expiry.tzinfo or timezone.utc)
+        ):
             errors.append(f"{service_id}: online_verified status is expired")
     return errors
+
 
 def handle_register(manifest_path: Path) -> int:
     """Validate and register a manifest JSONL file."""
@@ -209,7 +233,9 @@ def handle_register(manifest_path: Path) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Validate Zentrale Insel manifest/status gates.")
+    parser = argparse.ArgumentParser(
+        description="Validate Zentrale Insel manifest/status gates."
+    )
     parser.add_argument("mode", choices=["manifest", "status", "all", "register"])
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--status", type=Path, default=DEFAULT_STATUS)
@@ -222,7 +248,7 @@ def main() -> int:
         errors.extend(validate_status(args.status))
     if args.mode == "register":
         return handle_register(args.manifest)
-    
+
     if errors:
         print("GATE FAILED")
         for error in errors:

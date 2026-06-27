@@ -2,6 +2,7 @@ import subprocess
 import json
 from pathlib import Path
 
+
 def test_no_hardcoded_paths():
     # Run the prober
     subprocess.run(["python", "08_TOOLS_SCRIPTS/status_prober.py"], check=True)
