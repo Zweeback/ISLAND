@@ -7,6 +7,7 @@ sys.path.append(str(Path(__file__).resolve().parent))
 from datetime import datetime, timezone, timedelta
 from island_gate import parse_time
 
+
 class TestParseTime(unittest.TestCase):
     def test_parse_valid_iso_string(self):
         dt = parse_time("2023-10-25T14:30:00")
@@ -18,7 +19,9 @@ class TestParseTime(unittest.TestCase):
 
     def test_parse_valid_iso_string_with_offset(self):
         dt = parse_time("2023-10-25T14:30:00+02:00")
-        self.assertEqual(dt, datetime(2023, 10, 25, 14, 30, 0, tzinfo=timezone(timedelta(hours=2))))
+        self.assertEqual(
+            dt, datetime(2023, 10, 25, 14, 30, 0, tzinfo=timezone(timedelta(hours=2)))
+        )
 
     def test_parse_invalid_string(self):
         dt = parse_time("invalid-date")
@@ -38,5 +41,6 @@ class TestParseTime(unittest.TestCase):
         dt = parse_time({"date": "2023-10-25"})
         self.assertIsNone(dt)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()
