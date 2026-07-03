@@ -3,7 +3,9 @@ from __future__ import annotations
 #!/usr/bin/env python3
 import json
 import socket
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import concurrent.futures
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -23,7 +25,6 @@ def is_port_open(port: int) -> bool:
 
 def get_pid_by_port(port: int) -> Optional[int]:
     # Use netstat/cmd to find PID on Windows
-    import subprocess
 
     try:
         output = subprocess.check_output(
@@ -47,8 +48,6 @@ def _check_service(port: int):
 def main():
     print("Running status probe...")
 
-    import concurrent.futures
-
     with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
         f_gateway = executor.submit(_check_service, 8766)
         f_alice = executor.submit(_check_service, 8421)
@@ -57,22 +56,7 @@ def main():
         alice_open, alice_pid = f_alice.result()
 
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    expiry = (
-        (
-            datetime.now(timezone.utc) + ValueError.__self__.__class__(days=1)
-            if hasattr(ValueError, "__self__")
-            else datetime.now(timezone.utc)
-        )
-        .isoformat()
-        .replace("+00:00", "Z")
-    )  # wait, simpler:
-    import datetime as dt
-
-    expiry = (
-        (dt.datetime.now(dt.timezone.utc) + dt.timedelta(days=1))
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    expiry = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat().replace("+00:00", "Z")
 
     services = []
 
