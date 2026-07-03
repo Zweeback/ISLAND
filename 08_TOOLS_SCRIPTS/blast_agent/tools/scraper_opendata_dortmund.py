@@ -77,7 +77,8 @@ def search_datasets(query: str) -> dict[str, Any]:
 
 def get_records(dataset_id: str, limit: int = 10) -> dict[str, Any]:
     params = {"limit": limit}
-    res = query_opendata(f"catalog/datasets/{dataset_id}/records", params)
+    encoded_dataset_id = urllib.parse.quote(dataset_id, safe="")
+    res = query_opendata(f"catalog/datasets/{encoded_dataset_id}/records", params)
     if not isinstance(res, dict) or "error" in res:
         err_msg = (
             res.get("error", "Unknown error") if isinstance(res, dict) else str(res)
