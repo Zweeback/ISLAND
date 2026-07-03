@@ -1,0 +1,5 @@
+🧪 Add tests for ALICE3D load_model
+
+🎯 What: Added tests for the `load_model` function in `alice_3d_character.py`.
+📊 Coverage: Tested loading a model with just a path, with a path and texture, and with a path and a None texture to ensure properties update correctly and the method returns `self`.
+✨ Result: Improves test coverage for the ALICE3D state modification methods.
