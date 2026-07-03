@@ -94,19 +94,20 @@ def iter_jsonl(path: Path) -> tuple[list[dict[str, Any]], list[str]]:
     records: list[dict[str, Any]] = []
     if not path.exists():
         return records, [f"missing file: {path}"]
-    for line_no, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-        stripped = line.strip()
-        if not stripped:
-            continue
-        try:
-            item = json.loads(stripped)
-        except json.JSONDecodeError as exc:
-            errors.append(f"{path}:{line_no}: invalid json: {exc}")
-            continue
-        if not isinstance(item, dict):
-            errors.append(f"{path}:{line_no}: record is not an object")
-            continue
-        records.append(item)
+    with path.open(encoding="utf-8") as f:
+        for line_no, line in enumerate(f, 1):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            try:
+                item = json.loads(stripped)
+            except json.JSONDecodeError as exc:
+                errors.append(f"{path}:{line_no}: invalid json: {exc}")
+                continue
+            if not isinstance(item, dict):
+                errors.append(f"{path}:{line_no}: record is not an object")
+                continue
+            records.append(item)
     return records, errors
 
 
