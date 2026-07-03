@@ -27,12 +27,13 @@ def get_pid_by_port(port: int) -> Optional[int]:
 
     try:
         output = subprocess.check_output(
-            f"netstat -ano | findstr LISTENING | findstr :{port}", shell=True
+            ["netstat", "-ano"]
         ).decode()
         for line in output.splitlines():
-            parts = line.strip().split()
-            if parts and parts[1].endswith(f":{port}"):
-                return int(parts[-1])
+            if "LISTENING" in line and f":{port}" in line:
+                parts = line.strip().split()
+                if len(parts) >= 2 and parts[1].endswith(f":{port}"):
+                    return int(parts[-1])
     except Exception:
         pass
     return None
