@@ -1,0 +1,4 @@
+- Overview of all projects
+- Quick start guide
+- Architecture diagram (if applicable)
+- Links to individual project docs
