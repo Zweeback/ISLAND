@@ -1,4 +1,0 @@
-- Project summaries
-- Tech stacks
-- Dependencies
-- Known issues
