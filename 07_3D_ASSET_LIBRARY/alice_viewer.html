@@ -159,7 +159,7 @@
 
         <h2>Appearance</h2>
         <div class="button-group">
-            <button onclick="changeColor('#ff00ff')">Magenta</button>
+            <button onclick="changeColor('#00ff88')">Green</button>
             <button onclick="changeColor('#00ffff')">Cyan</button>
             <button onclick="changeColor('#ff00ff')">Magenta</button>
             <button onclick="changeColor('#ffff00')">Yellow</button>
@@ -184,7 +184,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script>
-        const sceneData = {"width": 1920, "height": 1080, "background": "#0a0e27", "camera": {"position": {"x": 0, "y": 1.7, "z": 4}, "target": {"x": 0, "y": 1, "z": 0}}, "alice": {"name": "ALICE", "modelPath": "07_3D_ASSET_LIBRARY/alice.glb", "texturePath": "07_3D_ASSET_LIBRARY/alice_texture.png", "position": {"x": 0, "y": 0, "z": 0}, "rotation": {"pitch": 0, "yaw": 0, "roll": 0}, "scale": {"x": 1, "y": 1, "z": 1}, "currentAnimation": "idle", "animationSpeed": 1.0, "animationProgress": 0.0, "material": {"color": "#ff00ff", "metalness": 0.0, "roughness": 0.8, "emissive": "#000000", "opacity": 1.0}, "isMoving": false, "isTalking": false, "currentDialogue": "", "dialogueDuration": 0.0, "currentGesture": null, "gestureIntensity": 0.5, "visible": true, "alpha": 1.0, "createdAt": "2026-06-26T06:53:00.917062", "lastUpdated": "2026-06-26T06:53:00.917077", "dialogueHistory": [], "animationQueue": []}, "lights": {"main": {"type": "directional", "position": {"x": 10, "y": 15, "z": 10}, "intensity": 0.8}, "fill": {"type": "point", "position": {"x": -5, "y": 5, "z": 5}, "intensity": 0.4}}, "createdAt": "2026-06-26T06:53:00.917088"};
+        const sceneData = {"width": 1920, "height": 1080, "background": "#0a0e27", "camera": {"position": {"x": 0, "y": 1.7, "z": 4}, "target": {"x": 0, "y": 1, "z": 0}}, "alice": {"name": "ALICE", "modelPath": "07_3D_ASSET_LIBRARY/alice.glb", "texturePath": "07_3D_ASSET_LIBRARY/alice_texture.png", "position": {"x": 0, "y": 0, "z": 0}, "rotation": {"pitch": 0, "yaw": 0, "roll": 0}, "scale": {"x": 1, "y": 1, "z": 1}, "currentAnimation": "idle", "animationSpeed": 1.0, "animationProgress": 0.0, "material": {"color": "#ff00ff", "metalness": 0.0, "roughness": 0.8, "emissive": "#000000", "opacity": 1.0}, "isMoving": false, "isTalking": false, "currentDialogue": "", "dialogueDuration": 0.0, "currentGesture": null, "gestureIntensity": 0.5, "visible": true, "alpha": 1.0, "createdAt": "2026-06-27T18:59:39.636715", "lastUpdated": "2026-06-27T18:59:39.636731", "dialogueHistory": [], "animationQueue": []}, "lights": {"main": {"type": "directional", "position": {"x": 10, "y": 15, "z": 10}, "intensity": 0.8}, "fill": {"type": "point", "position": {"x": -5, "y": 5, "z": 5}, "intensity": 0.4}}, "createdAt": "2026-06-27T18:59:39.636743"};
         let aliceMesh = null;
         let currentAnimation = 'idle';
         let animationTime = 0;
@@ -327,7 +327,15 @@
         }
 
         function changeColor(color) {
-            material.color.setHex(color.replace('#', '0x'));
+            if (aliceMesh) {
+                aliceMesh.traverse(function(child) {
+                    if (child.isMesh && child.material) {
+                        if (child.material.color) {
+                            child.material.color.setHex(color.replace('#', '0x'));
+                        }
+                    }
+                });
+            }
         }
 
         // Animation loop
