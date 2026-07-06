@@ -1,0 +1,49 @@
+{
+  "agent": {
+    "name": "JULES",
+    "type": "gemini-orchestrator",
+    "version": "1.0.0",
+    "description": "Unified Gemini-based orchestrator for the ISLAND workspace.",
+    "status": "planned-active"
+  },
+  "workspace": {
+    "root": "ISLAND",
+    "app_root": "APPS",
+    "inventory_ledger": "03_MANIFESTE_INVENTAR/repos_merged.jsonl",
+    "workflow_ledger": "03_MANIFESTE_INVENTAR/agent_workflows.jsonl",
+    "source_feed_ledger": "06_GATEWAY_LIVEFEED/source_feeds.jsonl",
+    "source_of_truth": "05_RAG_SOURCE_OF_TRUTH"
+  },
+  "apps": {
+    "alice": { "path": "APPS/alice", "enabled": true, "sources": ["Zweeback/alice", "Zweeback/3-d-persona"] },
+    "feednoodle": { "path": "APPS/feednoodle", "enabled": true, "sources": ["Zweeback/feednoodle"] },
+    "promptdex": { "path": "APPS/promptdex", "enabled": true, "sources": ["Zweeback/promptdex"] },
+    "grimm": { "path": "APPS/grimm", "enabled": true, "sources": ["Zweeback/GRIMM"] },
+    "gta_dortmund": { "path": "APPS/gta-dortmund", "enabled": true, "sources": ["Zweeback/GTA", "Zweeback/DORTMUND-GTA"], "autonomy_target": true },
+    "rag_core": { "path": "05_RAG_SOURCE_OF_TRUTH", "enabled": true, "sources": ["Zweeback/rag", "Zweeback/ragonnnn", "Zweeback/RAG_INDEX"] }
+  },
+  "gateways": {
+    "openclaw": {
+      "path": "06_GATEWAY_LIVEFEED/openclaw_gateway.md",
+      "contract_path": "06_GATEWAY_LIVEFEED/openclaw/README.md",
+      "required": false,
+      "status": "candidate-integration",
+      "previous_host": "Asus Vivobook V16",
+      "current_host": "MSI G75 9SC"
+    }
+  },
+  "autonomy": {
+    "enabled_by_default": false,
+    "primary_workflow": "gamedev-autonomy-loop",
+    "coordination_doc": "AGENTS/JULES/gamedev_autonomy.md",
+    "first_target": "APPS/gta-dortmund"
+  },
+  "safety": {
+    "delete_source_repositories": false,
+    "archive_source_repositories": false,
+    "require_explicit_archive_approval": true,
+    "require_approval_for_paid_cloud": true,
+    "require_approval_for_credentials": true,
+    "require_approval_for_cross_machine_execution": true
+  }
+}

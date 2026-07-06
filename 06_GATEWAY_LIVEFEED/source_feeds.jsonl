@@ -1,0 +1,3 @@
+{"feed_id":"dortmund-opendata","type":"api","url":"https://dortmund.opendatasoft.com/api/v2","target_lane":"APPS/gta-dortmund","status":"candidate","notes":"Use for Dortmund simulation data after scraper security PRs are reconciled."}
+{"feed_id":"github-island-prs","type":"github","url":"https://github.com/Zweeback/ISLAND/pulls","target_lane":"04_REPORTS_AUDITS","status":"active-reference","notes":"Use for agent coordination and PR reconciliation."}
+{"feed_id":"openclaw-previous-host","type":"machine-gateway","url":"local:Asus Vivobook V16","target_lane":"06_GATEWAY_LIVEFEED/openclaw","status":"rediscover-needed","notes":"Gateway existed on previous machine; current work is on MSI G75 9SC."}
