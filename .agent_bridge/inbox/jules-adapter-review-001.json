@@ -1,0 +1,8 @@
+{
+  "status": "broken",
+  "functioning": "None. Files not found in sandbox environment.",
+  "broken": "All checks failed because the source directory C:/Users/derzw/Documents/SovereignCloudRunAdapter is not accessible.",
+  "next_patch": "Upload the adapter source files to the workspace.",
+  "deploy_ready": false,
+  "missing_tests": "Cannot determine without source code."
+}
