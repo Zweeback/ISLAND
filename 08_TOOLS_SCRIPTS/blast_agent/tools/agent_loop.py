@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import sys
+import time
 import json
 import urllib.request
 import subprocess
@@ -212,6 +213,7 @@ class AgentLoop:
             log_entry = (
                 f"\n* **{datetime.now(timezone.utc).isoformat()}**: Executed {tool_name} with {args}. "
                 f"Reason: {decision.get('reason')}\n"
+                f"  * Result (truncated): {output[:1000]}\n"
             )
             self.write_file(self.map_path, gemini_map.rstrip() + "\n" + log_entry)
 
@@ -232,8 +234,12 @@ class AgentLoop:
 def main() -> None:
     workspace_root = Path(__file__).parent.parent.resolve()
     loop = AgentLoop(workspace_root)
-    res = loop.run_step()
-    print(json.dumps(res, indent=2, ensure_ascii=False))
+    while True:
+        res = loop.run_step()
+        print(json.dumps(res, indent=2, ensure_ascii=False))
+        if res.get("status") == "ended" or "error" in res:
+            break
+        time.sleep(1)
 
 
 if __name__ == "__main__":
