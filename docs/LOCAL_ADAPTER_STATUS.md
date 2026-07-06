@@ -6,16 +6,18 @@
 
 ## Aktueller Systemstatus
 
-- **Adapter Version:** Adapter-v2
+- **Adapter Version:** Adapter-v2 is confirmed to be running locally.
 - **Laufzeit-Pfad:** `C:\Users\derzw\Documents\SovereignCloudRunAdapter`
-- **Lokaler Server:** `http://localhost:8080` (gestartet via `python cloudrun_app.py`)
-- **Lokales LLM:** Ollama ist aktiv mit Modell `gemma4:latest`
+- **Lokaler Server:** The service is available at `http://localhost:8080` (gestartet via `python cloudrun_app.py`)
+- **Lokales LLM:** Local Ollama instance is active and serving the `gemma4:latest` model.
 
 ## Verifizierte Endpunkte
-Folgende Endpunkte wurden laut Protokoll erfolgreich geprüft:
+Folgende Endpunkte wurden laut Protokoll erfolgreich geprüft durch Antigravity/Codex:
 - `GET /health`
 - `GET /status`
 - `POST /chat provider=ollama`
 
-## Status-Einschätzung
+## Status-Einschätzung & Agent Responsibilities
 Der Adapter läuft lokal fehlerfrei. Es darf kein Überschreiben der `Adapter-v2` Dateien erfolgen.
+- **Antigravity:** Responsible for direct local execution, stability, and modifications to the local Windows runtime environment.
+- **Jules:** Responsible strictly for repository maintenance, documentation, and logic patching within the repository bounds. Jules must rely on `.agent_bridge/outbox` signals to understand local state.
