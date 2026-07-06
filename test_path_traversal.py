@@ -6,7 +6,7 @@ import json
 workspace_root = Path("08_TOOLS_SCRIPTS/blast_agent").resolve()
 sys.path.append(str(workspace_root / "tools"))
 
-from agent_loop import AgentLoop  # noqa: E402  # noqa: E402
+from agent_loop import AgentLoop  # noqa: E402
 
 
 def test_execute_tool_validation():

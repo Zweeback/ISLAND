@@ -107,6 +107,14 @@ class AgentLoop:
         if not tool_path.exists():
             return json.dumps({"error": f"Tool {tool_name} not found"})
 
+        # Security: Prevent parameter injection and command execution
+        for arg in args:
+            if arg.startswith("-"):
+                return json.dumps({"error": f"Security exception: argument '{arg}' cannot start with '-' (parameter injection protection)"})
+            for char in ["&", "|", ";", "<", ">", "`", "$", chr(10), chr(13)]:
+                if char in arg:
+                    return json.dumps({"error": f"Security exception: argument '{arg}' contains invalid shell metacharacters"})
+
         cmd = [sys.executable, str(tool_path)] + args
         print(f"Executing: {' '.join(cmd)}", file=sys.stderr)
         try:
@@ -115,7 +123,7 @@ class AgentLoop:
 
             res = subprocess.run(
                 cmd, capture_output=True, text=True, env=full_env, timeout=30
-            )
+            )  # nosec B603
             if res.returncode != 0:
                 return json.dumps({"error": res.stderr})
             return res.stdout

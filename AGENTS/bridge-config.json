@@ -1,0 +1,210 @@
+# Agent Bridge Configuration
+
+Bridge connecting Jules, Codex, Antigravity, and Gemini
+
+```json
+{
+  "bridge": {
+    "name": "ISLAND Agent Bridge",
+    "version": "1.0.0",
+    "status": "active"
+  },
+
+  "agents": {
+    "jules": {
+      "id": "jules",
+      "type": "orchestrator",
+      "role": "Primary decision-maker and router",
+      "status": "active",
+      "connections": ["codex", "gemini", "antigravity", "rag"],
+      "config": {
+        "timeout_ms": 30000,
+        "retry_attempts": 3,
+        "log_level": "info"
+      },
+      "endpoints": {
+        "process_query": "/agents/jules/query",
+        "trigger_app": "/agents/jules/trigger",
+        "status": "/agents/jules/status"
+      }
+    },
+
+    "codex": {
+      "id": "codex",
+      "type": "rules-engine",
+      "role": "Enforce rules, validate schemas, manage state",
+      "status": "active",
+      "config": {
+        "rules_path": "AGENTS/CODEX/rules/",
+        "schema_path": "AGENTS/CODEX/schemas/",
+        "fallback_to": "gemini",
+        "cache_ttl": 3600
+      },
+      "capabilities": [
+        "rule_validation",
+        "schema_enforcement",
+        "access_control",
+        "state_transitions",
+        "consistency_checks"
+      ],
+      "endpoints": {
+        "validate": "/agents/codex/validate",
+        "check_rules": "/agents/codex/rules",
+        "apply_schema": "/agents/codex/schema"
+      }
+    },
+
+    "gemini": {
+      "id": "gemini",
+      "type": "reasoning-engine",
+      "role": "Creative thinking, problem-solving, code generation",
+      "status": "active",
+      "config": {
+        "api_key": "$GEMINI_API_KEY",
+        "model": "gemini-pro",
+        "temperature": 0.7,
+        "max_tokens": 4096,
+        "fallback_to": "none"
+      },
+      "capabilities": [
+        "multi_step_reasoning",
+        "code_generation",
+        "creative_problem_solving",
+        "nlp_understanding",
+        "context_awareness"
+      ],
+      "endpoints": {
+        "reason": "/agents/gemini/reason",
+        "generate_code": "/agents/gemini/code",
+        "explain": "/agents/gemini/explain"
+      }
+    },
+
+    "antigravity": {
+      "id": "antigravity",
+      "type": "platform-controller",
+      "role": "Cloud compute, scaling, deployment",
+      "status": "active",
+      "config": {
+        "gcp_project": "$GCP_PROJECT_ID",
+        "firebase_url": "$FIREBASE_URL",
+        "region": "europe-west1",
+        "fallback_to": "none"
+      },
+      "capabilities": [
+        "gcp_integration",
+        "firebase_realtime",
+        "mcp_toolset",
+        "auto_scaling",
+        "deployment_pipeline"
+      ],
+      "endpoints": {
+        "deploy": "/agents/antigravity/deploy",
+        "scale": "/agents/antigravity/scale",
+        "status": "/agents/antigravity/status"
+      }
+    },
+
+    "rag": {
+      "id": "rag",
+      "type": "knowledge-engine",
+      "role": "Search, retrieve, and contextualize knowledge",
+      "status": "active",
+      "config": {
+        "embeddings_model": "text-embedding-004",
+        "vector_store": "INFRASTRUCTURE/05_RAG_SOURCE_OF_TRUTH",
+        "top_k": 5,
+        "similarity_threshold": 0.7
+      },
+      "capabilities": [
+        "semantic_search",
+        "embedded_knowledge_base",
+        "multi_source_retrieval",
+        "context_ranking",
+        "real_time_indexing"
+      ],
+      "endpoints": {
+        "retrieve": "/agents/rag/retrieve",
+        "search": "/agents/rag/search",
+        "index": "/agents/rag/index"
+      }
+    }
+  },
+
+  "routing_rules": {
+    "simulation": {
+      "agents": ["codex", "gemini", "antigravity", "rag"],
+      "priority_order": ["codex", "rag", "gemini", "antigravity"]
+    },
+    "data_query": {
+      "agents": ["rag", "codex"],
+      "priority_order": ["rag", "codex"]
+    },
+    "code_generation": {
+      "agents": ["gemini", "codex"],
+      "priority_order": ["gemini", "codex"]
+    },
+    "deployment": {
+      "agents": ["antigravity", "codex"],
+      "priority_order": ["antigravity", "codex"]
+    },
+    "error_recovery": {
+      "agents": ["codex", "gemini", "antigravity"],
+      "priority_order": ["codex", "gemini", "antigravity"]
+    }
+  },
+
+  "priorities": {
+    "safety": ["codex", "gemini"],
+    "performance": ["antigravity", "rag"],
+    "correctness": ["codex", "gemini"],
+    "knowledge": ["rag", "codex"]
+  },
+
+  "fallback_chains": {
+    "gemini_unavailable": [
+      "codex",
+      "cached_responses",
+      "manual_escalation"
+    ],
+    "codex_unavailable": [
+      "gemini",
+      "cached_responses",
+      "manual_escalation"
+    ],
+    "rag_unavailable": [
+      "cached_knowledge",
+      "gemini_reasoning",
+      "manual_research"
+    ],
+    "antigravity_unavailable": [
+      "local_deployment",
+      "manual_intervention"
+    ]
+  },
+
+  "health_checks": {
+    "interval_seconds": 60,
+    "timeout_seconds": 5,
+    "endpoints": {
+      "jules": "/agents/jules/health",
+      "codex": "/agents/codex/health",
+      "gemini": "/agents/gemini/health",
+      "antigravity": "/agents/antigravity/health",
+      "rag": "/agents/rag/health"
+    }
+  },
+
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "destinations": [
+      "AGENTS/JULES/logs/",
+      "AGENTS/CODEX/logs/",
+      "AGENTS/GEMINI/logs/",
+      "AGENTS/ANTIGRAVITY/logs/",
+      "AGENTS/RAG/logs/"
+    ]
+  }
+}
+```
