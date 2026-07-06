@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ISLAND Cockpit</title>
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Zweeback/ISLAND</p>
+          <h1>Control Cockpit</h1>
+        </div>
+        <div class="status-strip">
+          <span class="status good">Control Plane merged</span>
+          <span class="status warn">Drive CSV pending classification</span>
+          <span class="status good">Task queue wired</span>
+        </div>
+      </header>
+
+      <section class="hero-grid">
+        <div class="panel feed-panel">
+          <div class="panel-head">
+            <h2>Livefeed</h2>
+            <span>Drive, GitHub, AI Studio</span>
+          </div>
+          <div id="feedList" class="feed-list"></div>
+        </div>
+
+        <div class="panel alice-panel">
+          <div class="panel-head">
+            <h2>Alice 3D</h2>
+            <span>asset slot</span>
+          </div>
+          <div class="alice-stage">
+            <model-viewer id="aliceViewer" class="alice-viewer" camera-controls auto-rotate shadow-intensity="0.8" exposure="1.05" alt="Alice 3D model slot"></model-viewer>
+            <div id="aliceEmpty" class="alice-empty">
+              <strong>Alice asset registered, not committed</strong>
+              <span>Load a local `.glb` after opening the cockpit on the machine that has the Drive/Pixel export.</span>
+            </div>
+          </div>
+          <label class="file-button">
+            Load local Alice GLB
+            <input id="aliceFile" type="file" accept=".glb,model/gltf-binary" />
+          </label>
+          <p class="asset-note">Known local source: `CrossDevice/Pixel 8/storage/Download/alice_full.glb`</p>
+        </div>
+      </section>
+
+      <section class="work-grid">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Projects</h2>
+            <span>APPS and Input/projects</span>
+          </div>
+          <div id="projectGrid" class="project-grid"></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Agents</h2>
+            <span>routing roles</span>
+          </div>
+          <div id="agentList" class="agent-list"></div>
+        </div>
+
+        <div class="panel queue-panel">
+          <div class="panel-head">
+            <h2>Task Queue</h2>
+            <span id="taskSource">loading</span>
+          </div>
+          <div id="taskList" class="task-list"></div>
+        </div>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>

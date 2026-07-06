@@ -1,0 +1,59 @@
+name: Deploy ISLAND Cockpit
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '08_TOOLS_SCRIPTS/island_cockpit/**'
+      - '03_MANIFESTE_INVENTAR/task_queue.jsonl'
+      - '.github/workflows/island-cockpit-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: island-cockpit-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare cockpit artifact
+        run: |
+          mkdir -p _site
+          cp -R 08_TOOLS_SCRIPTS/island_cockpit/. _site/
+          mkdir -p _site/03_MANIFESTE_INVENTAR
+          cp 03_MANIFESTE_INVENTAR/task_queue.jsonl _site/03_MANIFESTE_INVENTAR/task_queue.jsonl
+          cp 03_MANIFESTE_INVENTAR/registry_schema_pack.jsonl _site/03_MANIFESTE_INVENTAR/registry_schema_pack.jsonl
+
+      - name: Patch static data paths for Pages artifact
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('_site/app.js')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('../../03_MANIFESTE_INVENTAR/task_queue.jsonl', './03_MANIFESTE_INVENTAR/task_queue.jsonl')
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

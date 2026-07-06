@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ISLAND Scanner Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>ISLAND Scanner Dashboard</h1>
+      <p>Bounded scans, source ledgers, and starter templates for the autonomous gamedev workspace.</p>
+    </div>
+    <span class="host">local only</span>
+  </header>
+
+  <main>
+    <section class="panel controls" aria-label="Scan controls">
+      <button onclick="triggerScan('local')">Scan Local</button>
+      <button onclick="triggerScan('gdrive')">Scan Drive Mount</button>
+      <button onclick="triggerScan('github')">Scan GitHub Public</button>
+      <button class="secondary" onclick="fetchStatus()">Refresh</button>
+    </section>
+
+    <section class="grid">
+      <article class="panel" id="scan-local"><h2>Local</h2><span class="status-badge status-idle">IDLE</span></article>
+      <article class="panel" id="scan-gdrive"><h2>Drive Mount</h2><span class="status-badge status-idle">IDLE</span></article>
+      <article class="panel" id="scan-github"><h2>GitHub</h2><span class="status-badge status-idle">IDLE</span></article>
+    </section>
+
+    <section class="panel split">
+      <form onsubmit="createTemplate(event)">
+        <h2>Template Creator</h2>
+        <label for="template-type">Type</label>
+        <select id="template-type">
+          <option value="document">Markdown document</option>
+          <option value="pdf">Printable HTML report</option>
+          <option value="spreadsheet">CSV tracker</option>
+          <option value="presentation">HTML slide starter</option>
+        </select>
+        <label for="template-name">Name</label>
+        <input id="template-name" value="gamedev autonomy brief" maxlength="80">
+        <button type="submit">Generate</button>
+      </form>
+      <div>
+        <h2>Agent Log</h2>
+        <div id="agent-terminal" class="terminal" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="table-header">
+        <h2>Catalog</h2>
+        <input id="search-input" oninput="renderCatalog()" placeholder="Filter files, repos, paths">
+      </div>
+      <table>
+        <thead><tr><th>Name</th><th>Source</th><th>Type</th><th>Size</th><th>Path</th></tr></thead>
+        <tbody id="catalog-body"><tr><td colspan="5">Run a scan to populate the catalog.</td></tr></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

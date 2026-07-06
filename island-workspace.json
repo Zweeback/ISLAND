@@ -1,0 +1,132 @@
+{
+  "workspace": "ISLAND - Game Dev Central",
+  "framework": "Game Development Hub",
+  "status": "active",
+  "description": "Unified development environment for all game & simulation projects",
+
+  "structure": {
+    "type": "multi-project",
+    "projects_path": "PROJECTS/",
+    "infrastructure_path": "INFRASTRUCTURE/",
+    "pipeline_path": "PIPELINE/",
+    "docs_path": "DOCS/"
+  },
+
+  "projects": [
+    {
+      "id": "gta-dortmund",
+      "name": "GTA Dortmund",
+      "type": "game-simulation",
+      "status": "active",
+      "path": "PROJECTS/gta-dortmund",
+      "description": "2D/3D urban simulation sandbox",
+      "merged_from": ["GTA", "DORTMUND-GTA"],
+      "stack": ["Three.js", "Node.js", "Gemini API"],
+      "agents": ["JULES"],
+      "requires_rag": true
+    },
+    {
+      "id": "alice-3d",
+      "name": "Alice 3D Persona",
+      "type": "3d-avatar",
+      "status": "active",
+      "path": "PROJECTS/alice-3d",
+      "description": "3D avatar rendering & interactions",
+      "merged_from": ["3-d-persona"],
+      "stack": ["Three.js", "Node.js"],
+      "agents": ["JULES"],
+      "requires_rag": false
+    },
+    {
+      "id": "feednoodle",
+      "name": "FeedNoodle",
+      "type": "data-visualization",
+      "status": "active",
+      "path": "PROJECTS/feednoodle",
+      "description": "Multi-source feeds in 3D space",
+      "merged_from": ["feednoodle"],
+      "stack": ["React", "Three.js", "Node.js"],
+      "agents": ["JULES"],
+      "requires_rag": true
+    },
+    {
+      "id": "promptdex",
+      "name": "PromptDex",
+      "type": "tool",
+      "status": "active",
+      "path": "PROJECTS/promptdex",
+      "description": "Prompt library & management tool",
+      "merged_from": ["promptdex"],
+      "stack": ["React", "Node.js"],
+      "agents": ["JULES"],
+      "requires_rag": false
+    },
+    {
+      "id": "grimm",
+      "name": "GRIMM",
+      "type": "knowledge-graph",
+      "status": "active",
+      "path": "PROJECTS/grimm",
+      "description": "Semantic knowledge graph builder",
+      "merged_from": ["GRIMM"],
+      "stack": ["Python", "Node.js"],
+      "agents": ["JULES"],
+      "requires_rag": true
+    }
+  ],
+
+  "infrastructure": {
+    "rag": {
+      "path": "INFRASTRUCTURE/05_RAG_SOURCE_OF_TRUTH",
+      "description": "Shared knowledge base for all projects",
+      "used_by": "all"
+    },
+    "agents": {
+      "path": "INFRASTRUCTURE/AGENTS",
+      "components": ["JULES", "ANTIGRAVITY", "SELF_HEALING"],
+      "description": "AI orchestration & automation"
+    },
+    "tools": {
+      "path": "INFRASTRUCTURE/08_TOOLS_SCRIPTS",
+      "description": "Dev tools, scrapers, automation"
+    },
+    "assets": {
+      "path": "INFRASTRUCTURE/07_3D_ASSET_LIBRARY",
+      "description": "Shared 3D models, textures, animations"
+    }
+  },
+
+  "pipeline": {
+    "entry": "PIPELINE/00_START_HIER",
+    "ingest": "PIPELINE/01_INGEST_INBOX",
+    "staging": "PIPELINE/02_QUARANTAENE_ALTSYSTEM",
+    "inventory": "PIPELINE/03_MANIFESTE_INVENTAR",
+    "reports": "PIPELINE/04_REPORTS_AUDITS",
+    "gateway": "PIPELINE/06_GATEWAY_LIVEFEED",
+    "temp": "PIPELINE/99_TMP_NUR_KURZLEBIG"
+  },
+
+  "quick_start": {
+    "run_project": "cd PROJECTS/{project_id} && npm install && npm run dev",
+    "run_all": "JULES.initialize() && JULES.start_all_projects()",
+    "add_project": "mkdir PROJECTS/{new_project} && copy template files && update config.json"
+  },
+
+  "documentation": [
+    "ARCHITECTURE.md - System design & structure",
+    "AGENTS_STRUCTURE.md - Agent hierarchy",
+    "CLEANUP_ROADMAP.md - Migration progress",
+    "AGENTS.md - Agent procedures",
+    "Workspace.md - Original workspace map"
+  ],
+
+  "deprecated_repos": [
+    "3-d-persona → merged to PROJECTS/alice-3d",
+    "feednoodle → merged to PROJECTS/feednoodle",
+    "promptdex → merged to PROJECTS/promptdex",
+    "GRIMM → merged to PROJECTS/grimm",
+    "GTA → merged to PROJECTS/gta-dortmund",
+    "DORTMUND-GTA → merged to PROJECTS/gta-dortmund",
+    "rag, ragonnnn, RAG_INDEX → consolidated to 05_RAG_SOURCE_OF_TRUTH"
+  ]
+}
