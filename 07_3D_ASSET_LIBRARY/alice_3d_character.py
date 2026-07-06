@@ -5,7 +5,7 @@ Real-time character interaction, animation, and dialogue system
 
 import json
 import numpy as np
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, asdict, field
 from enum import Enum
 from datetime import datetime
@@ -84,10 +84,7 @@ class ALICE3D:
     """ALICE - Advanced Live Interactive Character Engine"""
 
     def __init__(
-        self,
-        name: str = "ALICE",
-        model_path: Optional[str] = None,
-        texture_path: Optional[str] = None,
+        self, name: str = "ALICE", model_path: str = None, texture_path: str = None
     ):
         self.name = name
         self.model_path = model_path or "07_3D_ASSET_LIBRARY/alice.glb"
@@ -119,7 +116,7 @@ class ALICE3D:
         self.is_talking = False
         self.current_dialogue = ""
         self.dialogue_duration = 0.0
-        self.current_gesture: Optional[str] = None
+        self.current_gesture = None
         self.gesture_intensity = 0.5
 
         # Animation queues
@@ -230,10 +227,10 @@ class ALICE3D:
 
     def set_material(
         self,
-        color: Optional[str] = None,
-        metalness: Optional[float] = None,
-        roughness: Optional[float] = None,
-        opacity: Optional[float] = None,
+        color: str = None,
+        metalness: float = None,
+        roughness: float = None,
+        opacity: float = None,
     ):
         """Update character material properties"""
         if color:
@@ -341,8 +338,8 @@ class ALICEScene:
         self.alice: Optional[ALICE3D] = None
         self.camera_position = Vector3(0, 1.7, 4)
         self.camera_target = Vector3(0, 1, 0)
-        self.lights: Dict[str, Any] = {}
-        self.interactive_objects: Dict[str, Any] = {}
+        self.lights = {}
+        self.interactive_objects = {}
         self.scene_created_time = datetime.now().isoformat()
 
     def add_alice(self, alice: ALICE3D):

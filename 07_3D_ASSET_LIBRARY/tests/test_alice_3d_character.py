@@ -5,7 +5,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from alice_3d_character import ALICE3D
 
-
 def test_load_model():
     alice = ALICE3D()
 

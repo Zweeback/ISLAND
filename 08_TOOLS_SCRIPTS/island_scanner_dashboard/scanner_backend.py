@@ -7,7 +7,6 @@ import os
 import re
 import sys
 import urllib.request
-import urllib.parse
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -47,9 +46,7 @@ EXCLUDED_DIR_NAMES = {
     "Windows",
     "System32",
 }
-EXCLUDED_FILE_REGEX = re.compile(
-    r"(\.env|password|secret|id_rsa|token|cookie)", re.IGNORECASE
-)
+EXCLUDED_FILE_REGEX = re.compile(r"(\.env|password|secret|id_rsa|token|cookie)", re.IGNORECASE)
 
 
 def utc_now() -> str:
@@ -107,9 +104,7 @@ class FileScanner:
                         "name": filename,
                         "path": file_path.as_posix(),
                         "size_bytes": stat.st_size,
-                        "modified": datetime.fromtimestamp(
-                            stat.st_mtime, timezone.utc
-                        ).isoformat(),
+                        "modified": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
                         "type": file_path.suffix.lower() or "file",
                         "source": label,
                     }
@@ -118,11 +113,7 @@ class FileScanner:
 
     @staticmethod
     def scan_local() -> list[dict[str, Any]]:
-        roots = [
-            Path.home() / "Desktop",
-            Path.home() / "Downloads",
-            Path.home() / "Documents" / "Codex",
-        ]
+        roots = [Path.home() / "Desktop", Path.home() / "Downloads", Path.home() / "Documents" / "Codex"]
         results: list[dict[str, Any]] = []
         for root in roots:
             results.extend(FileScanner._walk(root, "local", MAX_DEPTH))
@@ -132,11 +123,7 @@ class FileScanner:
 
     @staticmethod
     def scan_gdrive() -> list[dict[str, Any]]:
-        roots = [
-            Path("G:/Meine Ablage"),
-            Path("G:/My Drive"),
-            Path.home() / "Google Drive",
-        ]
+        roots = [Path("G:/Meine Ablage"), Path("G:/My Drive"), Path.home() / "Google Drive"]
         results: list[dict[str, Any]] = []
         for root in roots:
             results.extend(FileScanner._walk(root, "google-drive-local-mount", 2))
@@ -147,7 +134,7 @@ class FileScanner:
     @staticmethod
     def scan_github() -> list[dict[str, Any]]:
         request = urllib.request.Request(
-            f"https://api.github.com/users/{urllib.parse.quote(GITHUB_OWNER)}/repos?per_page=100",
+            f"https://api.github.com/users/{urllib.request.quote(GITHUB_OWNER)}/repos?per_page=100",
             headers={"User-Agent": "ISLAND-Scanner-Dashboard"},
         )
         with urllib.request.urlopen(request, timeout=15) as response:
@@ -182,18 +169,10 @@ class TemplateGenerator:
 
         if template_type == "spreadsheet":
             content = "ID,Task,Owner,Status,Priority\n1,Define next step,Jules,planned,high\n2,Verify output,Codex,planned,medium\n"
-            return (
-                f"{slug}_tracker.csv",
-                "text/csv; charset=utf-8",
-                content.encode("utf-8"),
-            )
+            return f"{slug}_tracker.csv", "text/csv; charset=utf-8", content.encode("utf-8")
 
         if template_type in {"pdf", "presentation"}:
-            title = (
-                "Autonomous Scan Report"
-                if template_type == "pdf"
-                else "ISLAND Autonomy Slides"
-            )
+            title = "Autonomous Scan Report" if template_type == "pdf" else "ISLAND Autonomy Slides"
             body = f"""<!doctype html>
 <html lang=\"en\">
 <head><meta charset=\"utf-8\"><title>{title}: {escaped}</title><style>
@@ -215,9 +194,7 @@ main{{max-width:900px;margin:auto}} h1{{color:#0f766e}} section{{border-top:1px 
 
 class DashboardHandler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: Any) -> None:
-        sys.stderr.write(
-            f"{self.client_address[0]} - - [{self.log_date_time_string()}] {fmt % args}\n"
-        )
+        sys.stderr.write(f"{self.client_address[0]} - - [{self.log_date_time_string()}] {fmt % args}\n")
 
     def _json(self, status: int, payload: dict[str, Any]) -> None:
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -277,36 +254,24 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 files = FileScanner.scan_gdrive()
             else:
                 files = FileScanner.scan_github()
-            SCAN_RESULTS[source].update(
-                {"status": "success", "files": files, "last_run": utc_now()}
-            )
+            SCAN_RESULTS[source].update({"status": "success", "files": files, "last_run": utc_now()})
             INGEST_DIR.mkdir(parents=True, exist_ok=True)
-            (INGEST_DIR / f"scan_{source}_index.json").write_text(
-                json.dumps(SCAN_RESULTS[source], indent=2), encoding="utf-8"
-            )
-            self._json(
-                200, {"status": "success", "source": source, "file_count": len(files)}
-            )
+            (INGEST_DIR / f"scan_{source}_index.json").write_text(json.dumps(SCAN_RESULTS[source], indent=2), encoding="utf-8")
+            self._json(200, {"status": "success", "source": source, "file_count": len(files)})
         except Exception as exc:  # keep API resilient for dashboard use
             if "source" in locals() and source in SCAN_RESULTS:
-                SCAN_RESULTS[source].update(
-                    {"status": "error", "error": str(exc), "last_run": utc_now()}
-                )
+                SCAN_RESULTS[source].update({"status": "error", "error": str(exc), "last_run": utc_now()})
             self._json(400, {"status": "error", "error": str(exc)})
 
     def _handle_template(self) -> None:
         try:
             data = self._read_json()
-            filename, content_type, content = TemplateGenerator.generate(
-                str(data.get("type", "document")), str(data.get("name", "New Template"))
-            )
+            filename, content_type, content = TemplateGenerator.generate(str(data.get("type", "document")), str(data.get("name", "New Template")))
             INGEST_DIR.mkdir(parents=True, exist_ok=True)
             (INGEST_DIR / filename).write_bytes(content)
             self.send_response(200)
             self.send_header("Content-Type", content_type)
-            self.send_header(
-                "Content-Disposition", f'attachment; filename="{filename}"'
-            )
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
             self.send_header("Content-Length", str(len(content)))
             self.end_headers()
             self.wfile.write(content)

@@ -11,16 +11,19 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # Import the module to be tested
 from agent_loop import call_llm
 
-
 class TestCallLLM(unittest.TestCase):
 
-    @patch("urllib.request.urlopen")
+    @patch('urllib.request.urlopen')
     def test_call_llm_success(self, mock_urlopen):
         # Simulate a successful response
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
-            {"choices": [{"message": {"content": "Success!"}}]}
-        ).encode("utf-8")
+        mock_response.read.return_value = json.dumps({
+            "choices": [{
+                "message": {
+                    "content": "Success!"
+                }
+            }]
+        }).encode('utf-8')
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         # Call the function
@@ -29,13 +32,17 @@ class TestCallLLM(unittest.TestCase):
         # Assert that it returns the extracted message content
         self.assertEqual(result, "Success!")
 
-    @patch("urllib.request.urlopen")
+    @patch('urllib.request.urlopen')
     def test_call_llm_unexpected_format(self, mock_urlopen):
         # Simulate a response with unexpected format
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
-            {"choices": [{"not_message": {"content": "foo"}}]}
-        ).encode("utf-8")
+        mock_response.read.return_value = json.dumps({
+            "choices": [{
+                "not_message": {
+                    "content": "foo"
+                }
+            }]
+        }).encode('utf-8')
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         # Call the function
@@ -49,13 +56,13 @@ class TestCallLLM(unittest.TestCase):
 
         self.assertEqual(result_json_str, "")
 
-    @patch("urllib.request.urlopen")
+    @patch('urllib.request.urlopen')
     def test_call_llm_unexpected_format_2(self, mock_urlopen):
         # Simulate a response with no choices
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps({"not_choices": []}).encode(
-            "utf-8"
-        )
+        mock_response.read.return_value = json.dumps({
+            "not_choices": []
+        }).encode('utf-8')
         mock_urlopen.return_value.__enter__.return_value = mock_response
 
         # Call the function
@@ -66,7 +73,7 @@ class TestCallLLM(unittest.TestCase):
         self.assertIn("error", result_dict)
         self.assertEqual(result_dict["error"], "Unexpected LLM response format")
 
-    @patch("urllib.request.urlopen")
+    @patch('urllib.request.urlopen')
     def test_call_llm_network_error(self, mock_urlopen):
         # Simulate a network timeout or URL error
         mock_urlopen.side_effect = urllib.error.URLError("Connection timed out")
@@ -77,13 +84,9 @@ class TestCallLLM(unittest.TestCase):
 
         # Assert that it returns the expected error message format
         self.assertIn("error", result_dict)
-        self.assertTrue(
-            result_dict["error"].startswith(
-                "LLM Call failed: <urlopen error Connection timed out>"
-            )
-        )
+        self.assertTrue(result_dict["error"].startswith("LLM Call failed: <urlopen error Connection timed out>"))
 
-    @patch("urllib.request.urlopen")
+    @patch('urllib.request.urlopen')
     def test_call_llm_generic_exception(self, mock_urlopen):
         # Simulate a generic exception
         mock_urlopen.side_effect = Exception("Some unknown error")
@@ -97,5 +100,5 @@ class TestCallLLM(unittest.TestCase):
         self.assertEqual(result_dict["error"], "LLM Call failed: Some unknown error")
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

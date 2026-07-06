@@ -56,11 +56,7 @@ def main():
         alice_open, alice_pid = f_alice.result()
 
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-    expiry = (
-        (datetime.now(timezone.utc) + timedelta(days=1))
-        .isoformat()
-        .replace("+00:00", "Z")
-    )
+    expiry = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat().replace("+00:00", "Z")
 
     services = []
 
