@@ -1,0 +1,11 @@
+{
+  "sandbox_limited": true,
+  "note": "PR #65 was sandbox-limited and should not be treated as real local adapter evidence. The SovereignCloudRunAdapter source on C:/ could not be read.",
+  "adapter_v2_status": {
+    "host": "localhost:8080",
+    "health": "OK",
+    "status": "OK",
+    "chat": "Placeholder OK",
+    "ollama": "reachable, model pending"
+  }
+}
