@@ -77,12 +77,16 @@ class LocalIndexer:
             print(f"Scanning directory: {root_path}", file=sys.stderr)
             file_entries: list[FileEntry] = []
 
+            # Cache lookups locally for performance in the tight loop
+            search_excluded_file = _EXCLUDED_FILE_REGEX.search
+            exclude_dir_set = EXCLUDED_DIR_NAMES
+
             for root, dirs, files in os.walk(root_path):
                 # Modify dirs in-place to skip excluded directories during walk
-                dirs[:] = [d for d in dirs if not self.should_exclude_dir(d)]
+                dirs[:] = [d for d in dirs if d not in exclude_dir_set]
 
                 for file in files:
-                    if self.should_exclude_file(file):
+                    if search_excluded_file(file):
                         continue
 
                     file_path = os.path.join(root, file)
