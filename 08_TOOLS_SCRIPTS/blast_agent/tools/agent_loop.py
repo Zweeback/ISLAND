@@ -103,6 +103,13 @@ class AgentLoop:
         if not re.match(r"^[a-zA-Z0-9_]+$", tool_name):
             return json.dumps({"error": f"Invalid tool name: {tool_name}"})
 
+        # Security Fix: Prevent Parameter and Command Injection from LLM-provided arguments
+        for arg in args:
+            if arg.strip().startswith("-"):
+                return json.dumps({"error": f"Security Violation: Parameter injection detected in argument '{arg}'."})
+            if re.search(r'[;&|$\n><`]', arg):
+                return json.dumps({"error": f"Security Violation: Shell metacharacter detected in argument '{arg}'."})
+
         tool_path = self.root / "tools" / f"{tool_name}.py"
         if not tool_path.exists():
             return json.dumps({"error": f"Tool {tool_name} not found"})

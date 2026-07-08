@@ -48,6 +48,24 @@ def test_security():
     assert "error" in parsed, "Expected an error."
     assert "Invalid tool name" in parsed["error"], "Expected invalid tool name error."
 
+    # Test parameter injection in execute_tool arguments
+    res_param_inject = loop.execute_tool("scraper_opendata_dortmund", ["--help"])
+    parsed_param_inject = json.loads(res_param_inject)
+    assert "error" in parsed_param_inject, "Expected an error for parameter injection."
+    assert "Security Violation: Parameter injection detected" in parsed_param_inject["error"], "Expected parameter injection error."
+
+    # Test bypass parameter injection in execute_tool arguments
+    res_bypass_inject = loop.execute_tool("scraper_opendata_dortmund", [" --malicious"])
+    parsed_bypass_inject = json.loads(res_bypass_inject)
+    assert "error" in parsed_bypass_inject, "Expected an error for bypass parameter injection."
+    assert "Security Violation: Parameter injection detected" in parsed_bypass_inject["error"], "Expected bypass parameter injection error."
+
+    # Test command injection in execute_tool arguments
+    res_cmd_inject = loop.execute_tool("scraper_opendata_dortmund", ["search", "Bibliotheken; rm -rf /"])
+    parsed_cmd_inject = json.loads(res_cmd_inject)
+    assert "error" in parsed_cmd_inject, "Expected an error for command injection."
+    assert "Security Violation: Shell metacharacter detected" in parsed_cmd_inject["error"], "Expected command injection error."
+
     print("All security tests passed.")
 
 
