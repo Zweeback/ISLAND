@@ -4,11 +4,11 @@ from pathlib import Path
 
 
 def test_no_hardcoded_paths():
-    # Run the prober
-    subprocess.run(["python", "08_TOOLS_SCRIPTS/status_prober.py"], check=True)
+    root = Path(__file__).resolve().parents[1]
+    prober_script = root / "08_TOOLS_SCRIPTS" / "status_prober.py"
+    subprocess.run(["python", str(prober_script)], check=True)
 
     # Check the output file
-    root = Path(__file__).resolve().parents[1]
     status_file = root / "06_GATEWAY_LIVEFEED" / "service_status.jsonl"
 
     assert status_file.exists(), "Status file was not created"
