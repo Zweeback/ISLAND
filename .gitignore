@@ -70,3 +70,6 @@ Input/projects/anti-gravity-bridge/.env.*
 
 # Scientific Compiler Ignored Files
 Input/projects/scientific-compiler/
+
+# Gateway livefeed runtime telemetry (written by status_prober.py)
+06_GATEWAY_LIVEFEED/service_status.jsonl
