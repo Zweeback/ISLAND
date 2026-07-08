@@ -13,8 +13,8 @@ ALLOWED_TRANSITIONS: Dict[str, Set[str]] = {
     "ready": {"running", "cancelled"},
     "running": {"succeeded", "failed", "cancelled"},
     "deferred": {"retrying", "failed", "cancelled"},
-    "failed": {"retrying", "cancelled"},
-    "retrying": {"running", "deferred", "failed", "cancelled"},
+    "failed": {"cancelled"},
+    "retrying": {"running", "deferred", "failed", "cancelled", "retrying"},
     "succeeded": set(),
     "cancelled": set(),
 }

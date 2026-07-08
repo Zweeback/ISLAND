@@ -1,6 +1,9 @@
+import json
 import os
 import time
 import asyncio
+import uuid
+from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -9,11 +12,14 @@ from fastapi.testclient import TestClient
 from orchestrator.main import app, retry_deferred_entry
 from orchestrator.deferred_queue import (
     DEFERRED_DIR,
+    REDACTED,
     load_deferred_entry,
     remove_deferred_entry,
     queue_depth,
+    try_claim_deferred_job,
 )
-from orchestrator.retry_scheduler import process_deferred_once, is_dispatching
+from orchestrator.retry_scheduler import process_deferred_once
+from orchestrator.state_machine import JobStateMachine
 
 client = TestClient(app)
 
@@ -26,6 +32,7 @@ MOCK_ENV_KEYS = (
     "DEFERRED_MAX_RETRIES",
     "DEFERRED_BACKOFF_BASE_SEC",
     "DEFERRED_RETRY_INTERVAL_SEC",
+    "DEFERRED_CLAIM_STALE_SEC",
 )
 
 
@@ -33,13 +40,13 @@ MOCK_ENV_KEYS = (
 def clean_env():
     os.environ["DISABLE_DEFERRED_SCHEDULER"] = "true"
     if DEFERRED_DIR.exists():
-        for path in DEFERRED_DIR.glob("*.json"):
+        for path in DEFERRED_DIR.glob("*"):
             path.unlink()
     for key in MOCK_ENV_KEYS:
         os.environ.pop(key, None)
     yield
     if DEFERRED_DIR.exists():
-        for path in DEFERRED_DIR.glob("*.json"):
+        for path in DEFERRED_DIR.glob("*"):
             path.unlink()
     for key in MOCK_ENV_KEYS:
         os.environ.pop(key, None)
@@ -205,13 +212,151 @@ def test_no_duplicate_dispatch_on_retry(mock_meshroom):
 
     save_deferred_entry(entry)
 
-    from orchestrator.retry_scheduler import _dispatching
-
-    _dispatching.add(job_id)
+    assert try_claim_deferred_job(job_id) is not None
     asyncio.run(process_deferred_once(retry_deferred_entry))
     mock_meshroom.assert_not_called()
 
-    _dispatching.discard(job_id)
+    from orchestrator.deferred_queue import release_deferred_claim
+
+    release_deferred_claim(job_id)
     asyncio.run(process_deferred_once(retry_deferred_entry))
     assert mock_meshroom.call_count == 1
+    remove_deferred_entry(job_id)
+
+
+def test_claim_prevents_double_dispatch_from_file():
+    os.environ["MOCK_VRAM_FREE_MB"] = "1000"
+    os.environ["MOCK_RAM_FREE_MB"] = "16000"
+
+    response = client.post(
+        "/api/bridge/command",
+        json={
+            "schema_version": "bridge.command.v1",
+            "command_type": "meshroom.photogrammetry_reconstruct",
+            "target": "meshroom",
+            "dry_run": False,
+            "payload": {"images_dir": "test_input"},
+        },
+    )
+    job_id = response.json()["job_id"]
+    wait_for_state(job_id, {"deferred"})
+
+    assert try_claim_deferred_job(job_id) is not None
+    assert try_claim_deferred_job(job_id) is None
+
+    from orchestrator.deferred_queue import release_deferred_claim
+
+    release_deferred_claim(job_id)
+    remove_deferred_entry(job_id)
+
+
+def test_stale_claim_can_be_reclaimed():
+    os.environ["MOCK_VRAM_FREE_MB"] = "1000"
+    os.environ["MOCK_RAM_FREE_MB"] = "16000"
+
+    response = client.post(
+        "/api/bridge/command",
+        json={
+            "schema_version": "bridge.command.v1",
+            "command_type": "meshroom.photogrammetry_reconstruct",
+            "target": "meshroom",
+            "dry_run": False,
+            "payload": {"images_dir": "test_input"},
+        },
+    )
+    job_id = response.json()["job_id"]
+    wait_for_state(job_id, {"deferred"})
+
+    stale_at = (datetime.now(timezone.utc) - timedelta(seconds=600)).isoformat().replace("+00:00", "Z")
+    entry = load_deferred_entry(job_id)
+    entry["dispatching"] = True
+    entry["claimed_at"] = stale_at
+    from orchestrator.deferred_queue import save_deferred_entry
+
+    save_deferred_entry(entry)
+
+    reclaimed = try_claim_deferred_job(job_id)
+    assert reclaimed is not None
+    assert reclaimed["dispatching"] is True
+
+    from orchestrator.deferred_queue import release_deferred_claim
+
+    release_deferred_claim(job_id)
+    remove_deferred_entry(job_id)
+
+
+def test_deferred_payload_excludes_secrets():
+    os.environ["MOCK_VRAM_FREE_MB"] = "1000"
+    os.environ["MOCK_RAM_FREE_MB"] = "16000"
+
+    response = client.post(
+        "/api/bridge/command",
+        json={
+            "schema_version": "bridge.command.v1",
+            "command_type": "meshroom.photogrammetry_reconstruct",
+            "target": "meshroom",
+            "dry_run": False,
+            "payload": {
+                "images_dir": "test_input",
+                "api_key": "sk-live-secret",
+                "nested": {"access_token": "abc123"},
+            },
+        },
+    )
+    job_id = response.json()["job_id"]
+    wait_for_state(job_id, {"deferred"})
+
+    entry = load_deferred_entry(job_id)
+    payload = entry["command"]["payload"]
+    assert payload["api_key"] == REDACTED
+    assert payload["nested"]["access_token"] == REDACTED
+    assert payload["images_dir"] == "test_input"
+    assert "sk-live-secret" not in json.dumps(entry)
+    remove_deferred_entry(job_id)
+
+
+def test_failed_cannot_transition_to_retrying():
+    sm = JobStateMachine(f"test-failed-no-retry-{uuid.uuid4().hex}", initial_state="validating")
+    sm.transition_to("failed", reason="hard subprocess failure")
+    with pytest.raises(ValueError):
+        sm.transition_to("retrying")
+
+
+@patch("orchestrator.main.run_meshroom_pipeline")
+def test_retrying_self_transition_after_crash(mock_meshroom):
+    mock_meshroom.return_value = {
+        "success": True,
+        "artifacts": ["artifacts/jobs/meshroom_reconstruction_test.obj"],
+    }
+    os.environ["MOCK_VRAM_FREE_MB"] = "1000"
+    os.environ["MOCK_RAM_FREE_MB"] = "16000"
+
+    response = client.post(
+        "/api/bridge/command",
+        json={
+            "schema_version": "bridge.command.v1",
+            "command_type": "meshroom.photogrammetry_reconstruct",
+            "target": "meshroom",
+            "dry_run": False,
+            "payload": {"images_dir": "test_input"},
+        },
+    )
+    job_id = response.json()["job_id"]
+    wait_for_state(job_id, {"deferred"})
+
+    sm = JobStateMachine(job_id)
+    sm.transition_to("retrying", reason="simulated crash mid-retry")
+    os.environ["MOCK_VRAM_FREE_MB"] = "8000"
+
+    entry = load_deferred_entry(job_id)
+    entry["next_retry_at"] = "2000-01-01T00:00:00Z"
+    from orchestrator.deferred_queue import save_deferred_entry
+
+    save_deferred_entry(entry)
+
+    asyncio.run(process_deferred_once(retry_deferred_entry))
+
+    job_state = wait_for_state(job_id, {"completed", "succeeded"}, timeout=5.0)
+    assert job_state["state"] in ("completed", "succeeded")
+    mock_meshroom.assert_called_once()
     remove_deferred_entry(job_id)

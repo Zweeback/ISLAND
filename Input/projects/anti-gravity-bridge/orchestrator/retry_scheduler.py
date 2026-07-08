@@ -7,10 +7,11 @@ from typing import Awaitable, Callable, Set
 
 from orchestrator.deferred_queue import (
     compute_next_retry_at,
-    load_deferred_entry,
     load_due_deferred_jobs,
+    release_deferred_claim,
     remove_deferred_entry,
     save_deferred_entry,
+    try_claim_deferred_job,
 )
 
 logger = logging.getLogger("anti-gravity-bridge.retry_scheduler")
@@ -35,16 +36,16 @@ async def process_deferred_once(
         job_id = entry.get("job_id")
         if not job_id or job_id in _dispatching:
             continue
+        claimed = try_claim_deferred_job(job_id)
+        if not claimed:
+            continue
         _dispatching.add(job_id)
         try:
-            await retry_fn(entry)
+            await retry_fn(claimed)
             processed += 1
         finally:
             _dispatching.discard(job_id)
-            current = load_deferred_entry(job_id)
-            if current and current.get("dispatching"):
-                current["dispatching"] = False
-                save_deferred_entry(current)
+            release_deferred_claim(job_id)
     return processed
 
 
@@ -63,11 +64,17 @@ async def retry_scheduler_loop(
 
 
 def mark_retry_scheduled(entry: dict, reason: str) -> dict:
+    from orchestrator.deferred_queue import release_deferred_claim
+
+    job_id = entry["job_id"]
     entry["retry_count"] = int(entry.get("retry_count", 0)) + 1
     entry["reason"] = reason
     entry["next_retry_at"] = compute_next_retry_at(entry["retry_count"])
     entry["dispatching"] = False
+    entry.pop("claimed_at", None)
+    entry.pop("claimed_by_pid", None)
     save_deferred_entry(entry)
+    release_deferred_claim(job_id)
     return entry
 
 
