@@ -698,5 +698,48 @@ async def ws_events(ws: WebSocket) -> None:
         bus.clients.discard(ws)
 
 if __name__ == "__main__":
+    import argparse
+    import asyncio
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8420, reload=True)
+
+    parser = argparse.ArgumentParser(description="Anti-Gravity Bridge entry point")
+    parser.add_argument("command", nargs="?", default="runserver", help="runserver or run_dag")
+    args = parser.parse_args()
+
+    if args.command == "run_dag":
+        from orchestrator.dag_models import DagNode, DagRun
+        from orchestrator.dag_executor import execute_dag
+
+        dag = DagRun(
+            run_id="run_" + uuid.uuid4().hex[:8],
+            nodes=[
+                DagNode(
+                    node_id="mesh",
+                    command_type="meshroom.photogrammetry_reconstruct",
+                    target="meshroom",
+                    payload_template={},
+                ),
+                DagNode(
+                    node_id="blend",
+                    command_type="blender.create_cube",
+                    target="blender",
+                    depends_on=["mesh"],
+                    payload_template={},
+                ),
+                DagNode(
+                    node_id="unity",
+                    command_type="unity.sync_assets",
+                    target="unity",
+                    depends_on=["blend"],
+                    payload_template={},
+                ),
+            ],
+            node_states={},
+            artifacts={},
+            provenance={},
+        )
+        asyncio.run(execute_dag(dag))
+        print("DAG execution completed. Node states:", dag.node_states)
+    else:
+        uvicorn.run("main:app", host="127.0.0.1", port=8420, reload=True)
+
