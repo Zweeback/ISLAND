@@ -1,12 +1,36 @@
 import os
 import json
 import time
+import asyncio
+from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 from orchestrator.main import app
-from orchestrator.resource_manager import get_resource_snapshot, admit_job
+from orchestrator.resource_manager import (
+    get_resource_snapshot,
+    admit_job,
+    admit_job_with_recovery,
+)
 
 client = TestClient(app)
+
+MOCK_ENV_KEYS = (
+    "MOCK_VRAM_FREE_MB",
+    "MOCK_RAM_FREE_MB",
+    "MOCK_OLLAMA_UNLOAD",
+    "MOCK_VRAM_FREED_MB",
+    "MESHROOM_DRY_RUN",
+)
+
+
+@pytest.fixture(autouse=True)
+def clean_resource_mock_env():
+    for key in MOCK_ENV_KEYS:
+        os.environ.pop(key, None)
+    yield
+    for key in MOCK_ENV_KEYS:
+        os.environ.pop(key, None)
+
 
 def wait_for_job_completion(job_id: str, timeout: float = 2.0) -> dict:
     start_time = time.time()
@@ -65,26 +89,115 @@ def test_llm_validation_gate_invalid_json():
 
 def test_jit_guard_runtime_change():
     # 4. Simulate a situation where resource availability changes between command accept and execution.
-    # Set mock VRAM initially high for routing, then lower it before dispatch
-    os.environ["MOCK_VRAM_FREE_MB"] = "1000" # Lock JIT resource manager VRAM check
-    
+    os.environ["MOCK_VRAM_FREE_MB"] = "1000"
+
     payload = {
         "schema_version": "bridge.command.v1",
         "command_type": "meshroom.photogrammetry_reconstruct",
         "target": "meshroom",
-        "dry_run": False, # Real execution flow to trigger resource manager checks
-        "payload": {"images_dir": "test_input"}
+        "dry_run": False,
+        "payload": {"images_dir": "test_input"},
     }
-    
+
     response = client.post("/api/bridge/command", json=payload)
     assert response.status_code == 202
     job_id = response.json()["job_id"]
-    
+
     job_state = wait_for_job_completion(job_id)
     assert job_state["state"] == "failed"
     assert "insufficient_vram" in job_state["error"]
-    
+
+    history_states = [h["state"] for h in job_state.get("history", [])]
+    assert "running" not in history_states
+
     del os.environ["MOCK_VRAM_FREE_MB"]
+
+
+def test_ollama_unload_vram_recovery_unit():
+    os.environ["MOCK_VRAM_FREE_MB"] = "3000"
+    os.environ["MOCK_RAM_FREE_MB"] = "16000"
+    os.environ["MOCK_OLLAMA_UNLOAD"] = "true"
+    os.environ["MOCK_VRAM_FREED_MB"] = "4000"
+
+    admitted, reason, unloaded = asyncio.run(
+        admit_job_with_recovery("meshroom", "meshroom.photogrammetry_reconstruct")
+    )
+    assert unloaded is True
+    assert admitted is True
+    assert reason == "resources_available"
+    assert get_resource_snapshot()["vram_free_mb"] == 7000
+
+    for key in ("MOCK_VRAM_FREE_MB", "MOCK_RAM_FREE_MB", "MOCK_OLLAMA_UNLOAD", "MOCK_VRAM_FREED_MB"):
+        del os.environ[key]
+
+
+@patch("orchestrator.main.run_meshroom_pipeline")
+def test_ollama_unload_recovery_integration(mock_meshroom):
+    mock_meshroom.return_value = {
+        "success": True,
+        "artifacts": ["artifacts/jobs/meshroom_reconstruction_test.obj"],
+    }
+    os.environ["MOCK_VRAM_FREE_MB"] = "3000"
+    os.environ["MOCK_RAM_FREE_MB"] = "16000"
+    os.environ["MOCK_OLLAMA_UNLOAD"] = "true"
+    os.environ["MOCK_VRAM_FREED_MB"] = "4000"
+
+    payload = {
+        "schema_version": "bridge.command.v1",
+        "command_type": "meshroom.photogrammetry_reconstruct",
+        "target": "meshroom",
+        "dry_run": False,
+        "payload": {"images_dir": "test_input"},
+    }
+
+    response = client.post("/api/bridge/command", json=payload)
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+
+    job_state = wait_for_job_completion(job_id, timeout=3.0)
+    assert job_state["state"] in ("completed", "succeeded")
+    history_states = [h["state"] for h in job_state.get("history", [])]
+    assert "running" in history_states
+    assert "succeeded" in history_states or job_state["state"] == "completed"
+
+    events = client.get("/events?limit=50").json()
+
+    def _event_matches(job_event: dict, event_type: str, target_job_id: str) -> bool:
+        event_kind = job_event.get("type") or job_event.get("event")
+        if event_kind != event_type:
+            return False
+        payload = job_event.get("data") if isinstance(job_event.get("data"), dict) else job_event
+        return payload.get("job_id") == target_job_id
+
+    ollama_events = [
+        e for e in events if _event_matches(e, "job.ollama_unloaded", job_id)
+    ]
+    assert len(ollama_events) >= 1
+    mock_meshroom.assert_called_once()
+
+
+def test_state_machine_no_running_on_guard_rejection():
+    os.environ["MOCK_VRAM_FREE_MB"] = "1000"
+    os.environ["MOCK_RAM_FREE_MB"] = "16000"
+
+    payload = {
+        "schema_version": "bridge.command.v1",
+        "command_type": "blender.render_scene",
+        "target": "blender",
+        "dry_run": False,
+        "payload": {"model_name": "StressSphere"},
+    }
+
+    response = client.post("/api/bridge/command", json=payload)
+    job_id = response.json()["job_id"]
+    job_state = wait_for_job_completion(job_id)
+
+    assert job_state["state"] == "failed"
+    history_states = [h["state"] for h in job_state.get("history", [])]
+    assert "running" not in history_states
+    assert "failed" in history_states
+    assert history_states[-1] == "failed"
+
 
 def test_provenance_split():
     # 5. Check if logical and empirical provenance are generated correctly

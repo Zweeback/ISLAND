@@ -163,15 +163,6 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
     append_event(event)
     await bus.broadcast(event)
 
-    try:
-        sm.transition_to("ready", reason="Capability verified")
-        sm.transition_to("running", reason="Running background worker")
-        state.state = "running"
-        state.updated_at = utcnow()
-        write_job_state(state)
-    except Exception as e:
-        log.error(f"Failed state transition: {e}")
-
     artifacts = []
     errors = []
 
@@ -196,15 +187,53 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
             append_event(event)
             await bus.broadcast(event)
 
-    # 2. JIT Guard Resource check
+    # 2. JIT Guard Resource check (with optional Ollama VRAM recovery)
     if not errors and not cmd.dry_run:
-        from orchestrator.resource_manager import admit_job
-        admitted, reason = admit_job(cmd.target, cmd.command_type)
+        from orchestrator.resource_manager import admit_job_with_recovery
+
+        model_name = os.getenv("OLLAMA_RECOVERY_MODEL", "gemma4")
+        admitted, reason, ollama_unloaded = await admit_job_with_recovery(
+            cmd.target, cmd.command_type, model_name=model_name
+        )
+        if ollama_unloaded and admitted:
+            event = {
+                "type": "job.ollama_unloaded",
+                "job_id": job_id,
+                "detail": f"Unloaded {model_name} model to satisfy job VRAM requirements",
+            }
+            append_event(event)
+            await bus.broadcast(event)
         if not admitted:
             errors.append(reason)
             event = {"type": "job.deferred", "job_id": job_id, "reason": reason}
             append_event(event)
             await bus.broadcast(event)
+
+    # State Machine transitions & Pydantic state writes
+    if not errors:
+        try:
+            sm.transition_to("ready", reason="Capability verified")
+            sm.transition_to("running", reason="Running background worker")
+            state.state = "running"
+            state.updated_at = utcnow()
+            write_job_state(state)
+        except Exception as e:
+            log.error(f"Failed state transition: {e}")
+    else:
+        try:
+            sm.transition_to("failed", reason="; ".join(errors))
+            state.state = "failed"
+            state.updated_at = utcnow()
+            state.error = "; ".join(errors)
+            write_job_state(state)
+
+            # Broadcast failure event early
+            event = {"type": "job.failed", "job_id": job_id, "error": state.error}
+            append_event(event)
+            await bus.broadcast(event)
+        except Exception as e:
+            log.error(f"Failed state transition to failed: {e}")
+        return
 
     try:
         if not errors:

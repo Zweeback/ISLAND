@@ -66,42 +66,87 @@ def admit_job(target: str, command_type: str) -> Tuple[bool, str]:
     vram = snapshot["vram_free_mb"]
     ram = snapshot["ram_available_mb"]
 
-    # Define minimal hardware requirements
-    # Target Meshroom: requires 6GB VRAM (or RAM fallback if dry run)
+    # Define minimal hardware requirements (always enforced; cmd.dry_run bypasses guard in main)
     if target == "meshroom":
         required_vram = 6000
-        if vram < required_vram and not os.environ.get("BLENDER_DRY_RUN", "false").lower() in ("true", "1"):
-            # Check if we can fallback to CPU memory or if it is a hard fail
+        if vram < required_vram:
             return False, f"insufficient_vram: Meshroom requires {required_vram}MB free VRAM (free: {vram}MB)"
         if ram < 4000:
             return False, f"insufficient_ram: Meshroom requires 4000MB free RAM (free: {ram}MB)"
 
-    # Target Blender: requires 4GB VRAM
     elif target == "blender":
         required_vram = 4000
-        # If GPU is needed for Cycles rendering
         if "render_scene" in command_type:
-            if vram < required_vram and not os.environ.get("BLENDER_DRY_RUN", "false").lower() in ("true", "1"):
-                return False, f"insufficient_vram: Blender Cycles render requires {required_vram}MB free VRAM (free: {vram}MB)"
+            if vram < required_vram:
+                return False, (
+                    f"insufficient_vram: Blender Cycles render requires "
+                    f"{required_vram}MB free VRAM (free: {vram}MB)"
+                )
         if ram < 2000:
             return False, f"insufficient_ram: Blender requires 2000MB free RAM (free: {ram}MB)"
 
     return True, "resources_available"
 
+def _apply_mock_vram_unload(freed_mb: int) -> None:
+    current = int(os.environ.get("MOCK_VRAM_FREE_MB", "0"))
+    os.environ["MOCK_VRAM_FREE_MB"] = str(current + freed_mb)
+
+
 async def unload_ollama_model(model_name: str = "gemma4") -> bool:
     """
     Unloads the active Ollama model weights from GPU VRAM to free resources.
-    Uses the keep_alive: 0 option.
+    Uses the keep_alive: 0 option. MOCK_OLLAMA_UNLOAD enables deterministic tests.
     """
+    if os.environ.get("MOCK_OLLAMA_UNLOAD", "").lower() in ("true", "1", "yes"):
+        freed_mb = int(os.environ.get("MOCK_VRAM_FREED_MB", "5000"))
+        _apply_mock_vram_unload(freed_mb)
+        logger.info(
+            "Mock unloaded Ollama model %s, freed %sMB VRAM", model_name, freed_mb
+        )
+        return True
+
+    import sys
+    if "pytest" in sys.modules:
+        logger.info("Test environment detected. Skipping real Ollama unload request.")
+        return False
+
     import httpx
     host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
     url = f"{host}/api/generate"
     try:
         async with httpx.AsyncClient(timeout=5) as client:
-            res = await client.post(url, json={"model": model_name, "prompt": "", "keep_alive": 0})
+            res = await client.post(
+                url, json={"model": model_name, "prompt": "", "keep_alive": 0}
+            )
             if res.status_code == 200:
-                logger.info(f"Successfully unloaded Ollama model: {model_name}")
+                logger.info("Successfully unloaded Ollama model: %s", model_name)
                 return True
     except Exception as e:
-        logger.warning(f"Could not connect to Ollama to unload model {model_name}: {e}")
+        logger.warning(
+            "Could not connect to Ollama to unload model %s: %s", model_name, e
+        )
     return False
+
+
+async def admit_job_with_recovery(
+    target: str,
+    command_type: str,
+    model_name: str = "gemma4",
+) -> Tuple[bool, str, bool]:
+    """
+    Admission with one VRAM recovery attempt via Ollama unload.
+    Returns: (admitted, reason, ollama_unloaded)
+    """
+    admitted, reason = admit_job(target, command_type)
+    if admitted:
+        return True, reason, False
+    if "insufficient_vram" not in reason:
+        return False, reason, False
+
+    logger.info("VRAM low. Attempting to unload Ollama model '%s'...", model_name)
+    unloaded = await unload_ollama_model(model_name)
+    if not unloaded:
+        return False, reason, False
+
+    admitted, reason = admit_job(target, command_type)
+    return admitted, reason, True
