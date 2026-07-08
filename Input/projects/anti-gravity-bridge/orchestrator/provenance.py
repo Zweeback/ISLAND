@@ -108,16 +108,34 @@ def generate_provenance(
     py_ver = platform.python_version()
     os_info = f"{platform.system()} {platform.release()}"
 
+    # Import dynamically to prevent circular dependencies
+    from orchestrator.resource_manager import get_resource_snapshot
+
     provenance_data = {
         "job_id": job_id,
+        "logical_provenance": {
+            "git_commit": get_git_commit(),
+            "input_hashes": input_hashes,
+            "output_hashes": output_hashes,
+            "command_type": command.get("command_type") or command.get("capability_id") or "unknown",
+            "command_payload": command.get("payload") or command.get("command_payload") or command,
+        },
+        "empirical_provenance": {
+            "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "os": os_info,
+            "python_version": py_ver,
+            "tool_versions": get_tool_versions(),
+            "resource_snapshot": get_resource_snapshot(),
+            "non_determinism_flags": ["gpu_float_rounding", "thread_scheduling_drift"]
+        },
+        # Backward compatibility for legacy tests
         "command": command,
         "input_hashes": input_hashes,
         "output_hashes": output_hashes,
         "git_commit": get_git_commit(),
         "python_version": py_ver,
         "os": os_info,
-        "tool_versions": get_tool_versions(),
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        "tool_versions": get_tool_versions()
     }
 
     job_dir = os.path.join(base_dir, "artifacts", "jobs", job_id)

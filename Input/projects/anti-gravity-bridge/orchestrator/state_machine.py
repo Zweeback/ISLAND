@@ -8,6 +8,7 @@ logger = logging.getLogger("anti-gravity-bridge.state_machine")
 
 ALLOWED_TRANSITIONS: Dict[str, Set[str]] = {
     "queued": {"validating", "cancelled"},
+    "accepted": {"validating", "cancelled"},
     "validating": {"ready", "failed", "cancelled"},
     "ready": {"running", "cancelled"},
     "running": {"succeeded", "failed", "cancelled"},

@@ -84,6 +84,12 @@ class JobState(BaseModel):
     artifacts: List[str] = Field(default_factory=list)
     error: str | None = None
 
+class LLMOutputModel(BaseModel):
+    command: str
+    scale: List[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0])
+    radius: float = 1.0
+    output_path: str = ""
+
 class EventBus:
     def __init__(self) -> None:
         self.clients: set[WebSocket] = set()
@@ -140,15 +146,14 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
         command_id=cmd.command_id,
         target=cmd.target,
         command_type=cmd.command_type,
-        state="running",
+        state="accepted",
         created_at=started,
         updated_at=started,
         dry_run=cmd.dry_run,
     )
-    write_job_state(state)
 
     # State machine transition to validating -> ready -> running
-    sm = JobStateMachine(job_id)
+    sm = JobStateMachine(job_id, initial_state="accepted")
     try:
         sm.transition_to("validating", reason="Checking capability registration and payload")
     except Exception as e:
@@ -161,56 +166,91 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
     try:
         sm.transition_to("ready", reason="Capability verified")
         sm.transition_to("running", reason="Running background worker")
+        state.state = "running"
+        state.updated_at = utcnow()
+        write_job_state(state)
     except Exception as e:
         log.error(f"Failed state transition: {e}")
 
     artifacts = []
     errors = []
 
+    # 1. LLM Validation Gate
+    if "llm_raw_text" in cmd.payload:
+        raw_text = cmd.payload["llm_raw_text"]
+        try:
+            parsed_json = json.loads(raw_text)
+            validated_output = LLMOutputModel(**parsed_json)
+            # Safe payload transfer
+            cmd.payload.clear()
+            cmd.payload.update(validated_output.model_dump())
+        except Exception as e:
+            validation_error = f"failed_validation: {str(e)}"
+            errors.append(validation_error)
+            event = {
+                "type": "failed_validation",
+                "job_id": job_id,
+                "error": validation_error,
+                "raw_text": raw_text
+            }
+            append_event(event)
+            await bus.broadcast(event)
+
+    # 2. JIT Guard Resource check
+    if not errors and not cmd.dry_run:
+        from orchestrator.resource_manager import admit_job
+        admitted, reason = admit_job(cmd.target, cmd.command_type)
+        if not admitted:
+            errors.append(reason)
+            event = {"type": "job.deferred", "job_id": job_id, "reason": reason}
+            append_event(event)
+            await bus.broadcast(event)
+
     try:
-        if cmd.dry_run:
-            await asyncio.sleep(0.05)
-            artifacts_jobs_dir = JOBS_DIR / job_id
-            artifacts_jobs_dir.mkdir(parents=True, exist_ok=True)
+        if not errors:
+            if cmd.dry_run:
+                await asyncio.sleep(0.05)
+                artifacts_jobs_dir = JOBS_DIR / job_id
+                artifacts_jobs_dir.mkdir(parents=True, exist_ok=True)
 
-            if cmd.target == "blender":
-                art_file = f"blender_job_{cmd.command_type.split('.')[-1]}_{cmd.payload.get('model_name', 'model')}.glb"
-                marker = artifacts_jobs_dir / art_file
-                marker.write_text(f"MOCK GLB DATA FOR ACTION {cmd.command_type}\n", encoding="utf-8")
-            elif cmd.target == "meshroom":
-                art_file = f"meshroom_reconstruction_{cmd.payload.get('project_id', 'proj')}.obj"
-                marker = artifacts_jobs_dir / art_file
-                marker.write_text(f"# MOCK OBJ RECONSTRUCTION FOR ACTION {cmd.command_type}\n", encoding="utf-8")
-            else:
-                marker = artifacts_jobs_dir / "dry_run.txt"
-                marker.write_text("ok\n", encoding="utf-8")
+                if cmd.target == "blender":
+                    art_file = f"blender_job_{cmd.command_type.split('.')[-1]}_{cmd.payload.get('model_name', 'model')}.glb"
+                    marker = artifacts_jobs_dir / art_file
+                    marker.write_text(f"MOCK GLB DATA FOR ACTION {cmd.command_type}\n", encoding="utf-8")
+                elif cmd.target == "meshroom":
+                    art_file = f"meshroom_reconstruction_{cmd.payload.get('project_id', 'proj')}.obj"
+                    marker = artifacts_jobs_dir / art_file
+                    marker.write_text(f"# MOCK OBJ RECONSTRUCTION FOR ACTION {cmd.command_type}\n", encoding="utf-8")
+                else:
+                    marker = artifacts_jobs_dir / "dry_run.txt"
+                    marker.write_text("ok\n", encoding="utf-8")
 
-            artifacts.append(f"artifacts/jobs/{job_id}/{marker.name}")
-        else:
-            # Real execution calling runners
-            loop = asyncio.get_running_loop()
-            if cmd.target == "blender":
-                action = cmd.command_type.split(".")[-1]
-                result = await loop.run_in_executor(None, lambda: run_blender_command(action=action, payload=cmd.payload))
-                if result.get("success"):
-                    artifacts = result.get("artifacts", [])
-                else:
-                    errors.append(result.get("error", "Unknown Blender error"))
-            elif cmd.target == "meshroom":
-                action = cmd.command_type.split(".")[-1]
-                result = await loop.run_in_executor(None, lambda: run_meshroom_pipeline(action=action, payload=cmd.payload))
-                if result.get("success"):
-                    artifacts = result.get("artifacts", [])
-                else:
-                    errors.append(result.get("error", "Unknown Meshroom error"))
-            elif cmd.target == "unity":
-                report_name = "unity_sync_report.json"
-                report_path = JOBS_DIR / job_id / report_name
-                report_path.parent.mkdir(parents=True, exist_ok=True)
-                report_path.write_text('{"status": "success", "synced_assets_count": 0}\n', encoding="utf-8")
-                artifacts.append(f"artifacts/jobs/{job_id}/{report_name}")
+                artifacts.append(f"artifacts/jobs/{job_id}/{marker.name}")
             else:
-                errors.append(f"Unsupported target: {cmd.target}")
+                # Real execution calling runners
+                loop = asyncio.get_running_loop()
+                if cmd.target == "blender":
+                    action = cmd.command_type.split(".")[-1]
+                    result = await loop.run_in_executor(None, lambda: run_blender_command(action=action, payload=cmd.payload))
+                    if result.get("success"):
+                        artifacts = result.get("artifacts", [])
+                    else:
+                        errors.append(result.get("error", "Unknown Blender error"))
+                elif cmd.target == "meshroom":
+                    action = cmd.command_type.split(".")[-1]
+                    result = await loop.run_in_executor(None, lambda: run_meshroom_pipeline(action=action, payload=cmd.payload))
+                    if result.get("success"):
+                        artifacts = result.get("artifacts", [])
+                    else:
+                        errors.append(result.get("error", "Unknown Meshroom error"))
+                elif cmd.target == "unity":
+                    report_name = "unity_sync_report.json"
+                    report_path = JOBS_DIR / job_id / report_name
+                    report_path.parent.mkdir(parents=True, exist_ok=True)
+                    report_path.write_text('{"status": "success", "synced_assets_count": 0}\n', encoding="utf-8")
+                    artifacts.append(f"artifacts/jobs/{job_id}/{report_name}")
+                else:
+                    errors.append(f"Unsupported target: {cmd.target}")
     except Exception as exc:
         errors.append(str(exc))
 
