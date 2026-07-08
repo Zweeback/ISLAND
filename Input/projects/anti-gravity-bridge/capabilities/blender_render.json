@@ -1,0 +1,16 @@
+{
+  "id": "blender.render_scene",
+  "version": "1.0.0",
+  "owner": "blender-adapter",
+  "input_schema": "schemas/command_schema.json",
+  "output_schema": "schemas/job_schema.json",
+  "timeout_sec": 60,
+  "dependencies": [],
+  "healthcheck_command": "blender --version",
+  "cost_hint": 1.8,
+  "resource_requirements": {
+    "cpu_cores": 2,
+    "gpu_required": false,
+    "vram_mb": 0
+  }
+}

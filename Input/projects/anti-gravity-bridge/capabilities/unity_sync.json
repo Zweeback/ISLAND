@@ -1,0 +1,16 @@
+{
+  "id": "unity.sync_assets",
+  "version": "1.0.0",
+  "owner": "unity-adapter",
+  "input_schema": "schemas/command_schema.json",
+  "output_schema": "schemas/job_schema.json",
+  "timeout_sec": 30,
+  "dependencies": [],
+  "healthcheck_command": "echo unity",
+  "cost_hint": 1.0,
+  "resource_requirements": {
+    "cpu_cores": 1,
+    "gpu_required": false,
+    "vram_mb": 0
+  }
+}

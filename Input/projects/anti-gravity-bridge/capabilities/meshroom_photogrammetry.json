@@ -1,0 +1,16 @@
+{
+  "id": "meshroom.photogrammetry_reconstruct",
+  "version": "1.0.0",
+  "owner": "meshroom-adapter",
+  "input_schema": "schemas/command_schema.json",
+  "output_schema": "schemas/job_schema.json",
+  "timeout_sec": 300,
+  "dependencies": [],
+  "healthcheck_command": "nvidia-smi",
+  "cost_hint": 5.0,
+  "resource_requirements": {
+    "cpu_cores": 4,
+    "gpu_required": true,
+    "vram_mb": 4096
+  }
+}

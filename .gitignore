@@ -56,3 +56,14 @@ __pycache__/
 bench_dir/
 benchmark_test_dir/
 benchmark.py
+
+# Anti-Gravity Bridge Ignored Files
+Input/projects/anti-gravity-bridge/.venv/
+Input/projects/anti-gravity-bridge/**/__pycache__/
+Input/projects/anti-gravity-bridge/.pytest_cache/
+Input/projects/anti-gravity-bridge/**/*.pyc
+Input/projects/anti-gravity-bridge/artifacts/
+Input/projects/anti-gravity-bridge/logs/
+Input/projects/anti-gravity-bridge/*.log
+Input/projects/anti-gravity-bridge/.env
+Input/projects/anti-gravity-bridge/.env.*

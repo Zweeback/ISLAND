@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AntiGravityBridgeCommand",
+  "description": "Standard schema for instructions routed through the Anti-Gravity Bridge to Unity, Blender, or Meshroom.",
+  "type": "OBJECT",
+  "properties": {
+    "schema_version": {
+      "type": "STRING",
+      "enum": ["1.0.0"],
+      "description": "The command schema version."
+    },
+    "command_id": {
+      "type": "STRING",
+      "description": "Unique identifier (UUID) for this command."
+    },
+    "target": {
+      "type": "STRING",
+      "enum": ["unity", "blender", "meshroom"],
+      "description": "Target subsystem for execution."
+    },
+    "action": {
+      "type": "STRING",
+      "description": "Action name to execute. e.g. export_fbx, generate_mesh, import_asset."
+    },
+    "payload": {
+      "type": "OBJECT",
+      "description": "Arbitrary parameter dictionary specific to the action."
+    },
+    "timestamp": {
+      "type": "STRING",
+      "format": "date-time"
+    }
+  },
+  "required": ["schema_version", "command_id", "target", "action", "payload"]
+}
