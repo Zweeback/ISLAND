@@ -4,6 +4,7 @@ import os
 import sys
 import uuid
 import json
+import hashlib
 import logging
 import asyncio
 from contextlib import asynccontextmanager
@@ -12,7 +13,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Literal, Optional
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Setup path to allow importing sibling packages (blender, meshroom)
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -86,10 +87,34 @@ class JobState(BaseModel):
     error: str | None = None
 
 class LLMOutputModel(BaseModel):
-    command: str
-    scale: List[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0])
-    radius: float = 1.0
-    output_path: str = ""
+    model_config = ConfigDict(extra="forbid")
+
+    command: Literal[
+        "blender.create_cube",
+        "blender.render_scene",
+        "meshroom.photogrammetry_reconstruct",
+        "unity.sync_assets",
+    ]
+    scale: List[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0], min_length=3, max_length=3)
+    radius: float = Field(default=1.0, ge=0.01, le=100.0)
+    output_path: str = Field(default="", max_length=240)
+
+    @field_validator("scale")
+    @classmethod
+    def validate_scale_bounds(cls, value: List[float]) -> List[float]:
+        if any(component < 0.01 or component > 100.0 for component in value):
+            raise ValueError("scale components must be between 0.01 and 100.0")
+        return value
+
+    @field_validator("output_path")
+    @classmethod
+    def validate_output_path(cls, value: str) -> str:
+        if not value:
+            return value
+        path = Path(value)
+        if path.is_absolute() or any(part == ".." for part in path.parts):
+            raise ValueError("output_path must be a safe relative path")
+        return value
 
 class EventBus:
     def __init__(self) -> None:
@@ -389,13 +414,14 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
             cmd.payload.clear()
             cmd.payload.update(validated_output.model_dump())
         except Exception as e:
-            validation_error = f"failed_validation: {str(e)}"
+            validation_error = f"failed_validation: {type(e).__name__}"
             errors.append(validation_error)
             event = {
                 "type": "failed_validation",
                 "job_id": job_id,
                 "error": validation_error,
-                "raw_text": raw_text
+                "raw_text_sha256": hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+                "raw_text_length": len(raw_text),
             }
             append_event(event)
             await bus.broadcast(event)

@@ -2,6 +2,7 @@ import os
 import json
 import time
 import asyncio
+import hashlib
 from unittest.mock import patch, AsyncMock
 import pytest
 from fastapi.testclient import TestClient
@@ -34,6 +35,15 @@ def _event_matches(job_event: dict, event_type: str, target_job_id: str) -> bool
         return False
     payload = job_event.get("data") if isinstance(job_event.get("data"), dict) else job_event
     return payload.get("job_id") == target_job_id
+
+
+def _events_for_job(job_id: str, event_type: str) -> list[dict]:
+    matches = []
+    for event in _job_events(job_id):
+        if _event_matches(event, event_type, job_id):
+            payload = event.get("data") if isinstance(event.get("data"), dict) else event
+            matches.append(payload)
+    return matches
 
 
 @pytest.fixture(autouse=True)
@@ -82,13 +92,14 @@ def test_simulated_low_vram_rejection():
 
 def test_llm_validation_gate_invalid_json():
     # 3. Post a command with malformed LLM raw text
+    raw_text = "MALFORMED_NON_JSON_OUTPUT"
     payload = {
         "schema_version": "bridge.command.v1",
         "command_type": "blender.create_cube",
         "target": "blender",
         "dry_run": True,
         "payload": {
-            "llm_raw_text": "MALFORMED_NON_JSON_OUTPUT"
+            "llm_raw_text": raw_text
         }
     }
     
@@ -96,6 +107,62 @@ def test_llm_validation_gate_invalid_json():
     assert response.status_code == 202
     job_id = response.json()["job_id"]
     
+    job_state = wait_for_job_completion(job_id)
+    assert job_state["state"] == "failed"
+    assert "failed_validation" in job_state["error"]
+
+    validation_events = _events_for_job(job_id, "failed_validation")
+    assert len(validation_events) == 1
+    assert "raw_text" not in validation_events[0]
+    assert validation_events[0]["raw_text_sha256"] == hashlib.sha256(raw_text.encode("utf-8")).hexdigest()
+    assert validation_events[0]["raw_text_length"] == len(raw_text)
+
+
+def test_llm_validation_gate_rejects_extra_fields():
+    raw_text = json.dumps({
+        "command": "blender.create_cube",
+        "scale": [1.0, 1.0, 1.0],
+        "radius": 1.0,
+        "output_path": "artifacts/jobs/model.glb",
+        "subprocess_args": ["powershell", "-Command", "whoami"],
+    })
+    payload = {
+        "schema_version": "bridge.command.v1",
+        "command_type": "blender.create_cube",
+        "target": "blender",
+        "dry_run": True,
+        "payload": {"llm_raw_text": raw_text},
+    }
+
+    response = client.post("/api/bridge/command", json=payload)
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+
+    job_state = wait_for_job_completion(job_id)
+    assert job_state["state"] == "failed"
+    assert "failed_validation" in job_state["error"]
+    assert _events_for_job(job_id, "job.started") == []
+
+
+def test_llm_validation_gate_rejects_unsafe_output_path():
+    raw_text = json.dumps({
+        "command": "blender.create_cube",
+        "scale": [1.0, 1.0, 1.0],
+        "radius": 1.0,
+        "output_path": "../escape.glb",
+    })
+    payload = {
+        "schema_version": "bridge.command.v1",
+        "command_type": "blender.create_cube",
+        "target": "blender",
+        "dry_run": True,
+        "payload": {"llm_raw_text": raw_text},
+    }
+
+    response = client.post("/api/bridge/command", json=payload)
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+
     job_state = wait_for_job_completion(job_id)
     assert job_state["state"] == "failed"
     assert "failed_validation" in job_state["error"]
