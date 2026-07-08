@@ -1,30 +1,29 @@
-﻿"""
+"""
 test_dag_meshroom_blender_unity.py - Phase 5 DAG smoke test.
 
-Runs the 3-node DAG in dry_run mode so no real Meshroom/Blender/Unity
-process is spawned. Verifies the sequential state progression and
-that provenance is recorded per node.
+Runs the 3-node DAG in dry_run mode (default) so admission/subprocess
+pressure is bypassed while sequential ordering is verified.
 
 Usage:
     python scripts/test_dag_meshroom_blender_unity.py
+    python scripts/test_dag_meshroom_blender_unity.py --real
 """
+import argparse
 import asyncio
-import sys
 import os
+import sys
 import uuid
 
-# Ensure the project root is on the path.
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from orchestrator.dag_models import DagNode, DagRun
 
 
-async def main():
+async def main(dry_run: bool = True) -> int:
     from orchestrator.dag_executor import execute_dag
-    from orchestrator.main import BridgeCommand, JOBS_DIR
 
     run_id = "smoke_" + uuid.uuid4().hex[:8]
-    print(f"\n[SMOKE] DAG run_id: {run_id}")
+    print(f"\n[SMOKE] DAG run_id: {run_id}  dry_run={dry_run}")
 
     dag = DagRun(
         run_id=run_id,
@@ -55,7 +54,7 @@ async def main():
         provenance={},
     )
 
-    result = await execute_dag(dag)
+    result = await execute_dag(dag, dry_run=dry_run)
 
     print("\n[SMOKE] === DAG Result ===")
     for nid, state in result.node_states.items():
@@ -64,14 +63,27 @@ async def main():
         sha = prov.get("sha256", "n/a")[:12] if prov.get("sha256") else "n/a"
         print(f"  {nid:<8}  state={state:<12}  artifact={art}  sha256[:12]={sha}")
 
+    if dry_run:
+        if result.node_states == {"mesh": "completed", "blend": "completed", "unity": "completed"}:
+            print("\n[SMOKE] PASS: dry_run sequential DAG completed.")
+            return 0
+        print(f"\n[SMOKE] FAIL: unexpected states {result.node_states}")
+        return 1
+
+    deferred = [n for n, s in result.node_states.items() if s == "deferred"]
     failed = [n for n, s in result.node_states.items() if s == "failed"]
+    if deferred:
+        print(f"\n[SMOKE] PASS (real): deferred nodes {deferred} — downstream skipped as expected.")
+        return 0
     if failed:
-        print(f"\n[SMOKE] WARN: failed nodes: {failed}")
-        sys.exit(1)
-    else:
-        print("\n[SMOKE] PASS: all nodes completed or skipped cleanly.")
-        sys.exit(0)
+        print(f"\n[SMOKE] WARN (real): failed nodes {failed}")
+        return 1
+    print("\n[SMOKE] PASS (real): all nodes completed or skipped cleanly.")
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--real", action="store_true", help="Run with dry_run=False (VRAM admission applies)")
+    args = parser.parse_args()
+    sys.exit(asyncio.run(main(dry_run=not args.real)))

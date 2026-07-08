@@ -179,6 +179,31 @@ def test_no_parallel_execution(tmp_path, monkeypatch):
     assert max_concurrent[0] == 1, f"Expected max 1 concurrent job, got {max_concurrent[0]}"
 
 
+def test_deferred_node_skips_downstream(tmp_path, monkeypatch):
+    """Meshroom deferred (VRAM) => downstream skipped, not treated as hard failed."""
+    import orchestrator.main as m
+
+    tmp_jobs = tmp_path / "jobs"
+    monkeypatch.setattr(m, "JOBS_DIR", tmp_jobs)
+    monkeypatch.setattr(m, "generate_provenance", lambda **_kw: None)
+
+    ran_targets = []
+
+    async def mock_run_job(cmd, job_id):
+        ran_targets.append(cmd.target)
+        _write_job_state(tmp_jobs, job_id, "deferred", cmd.target, [])
+
+    monkeypatch.setattr(m, "run_job", mock_run_job)
+
+    from orchestrator.dag_executor import execute_dag
+    result = asyncio.run(execute_dag(_make_dag()))
+
+    assert result.node_states["mesh"] == "deferred"
+    assert result.node_states["blend"] == "skipped"
+    assert result.node_states["unity"] == "skipped"
+    assert ran_targets == ["meshroom"]
+
+
 def test_middle_node_failure(tmp_path, monkeypatch):
     """Blender failure => unity is skipped; meshroom stays completed."""
     import orchestrator.main as m

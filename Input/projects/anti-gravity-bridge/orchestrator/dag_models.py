@@ -13,7 +13,7 @@ class DagNode(BaseModel):
 class DagRun(BaseModel):
     run_id: str
     nodes: List[DagNode]
-    node_states: Dict[str, Literal["pending", "ready", "running", "completed", "failed", "skipped"]] = Field(default_factory=dict)
+    node_states: Dict[str, Literal["pending", "ready", "running", "completed", "failed", "skipped", "deferred"]] = Field(default_factory=dict)
     artifacts: Dict[str, str] = Field(default_factory=dict)  # node_id -> output_path
     provenance: Dict[str, Any] = Field(default_factory=dict)
 
