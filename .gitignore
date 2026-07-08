@@ -67,3 +67,6 @@ Input/projects/anti-gravity-bridge/logs/
 Input/projects/anti-gravity-bridge/*.log
 Input/projects/anti-gravity-bridge/.env
 Input/projects/anti-gravity-bridge/.env.*
+
+# Scientific Compiler Ignored Files
+Input/projects/scientific-compiler/
