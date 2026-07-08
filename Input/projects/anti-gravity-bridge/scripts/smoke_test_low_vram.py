@@ -91,10 +91,27 @@ def run_smoke_test():
         print("Verifying events...")
         r = httpx.get(f"{url}/events")
         events = r.json()
-        deferred_events = [e for e in events if e.get("type") == "job.deferred"]
+        def _event_type(e):
+            return e.get("type") or e.get("event")
+
+        def _event_job_id(e):
+            data = e.get("data") if isinstance(e.get("data"), dict) else e
+            return data.get("job_id")
+
+        started_events = [
+            e for e in events
+            if _event_type(e) == "job.started" and _event_job_id(e) == job_id
+        ]
+        assert len(started_events) == 0, "Rejected job must not emit job.started"
+
+        deferred_events = [
+            e for e in events
+            if _event_type(e) == "job.deferred" and _event_job_id(e) == job_id
+        ]
         assert len(deferred_events) > 0
         print("Deferred event verified:")
         print(json.dumps(deferred_events[-1], indent=2))
+        print("job.started correctly absent for rejected job")
         
         print("\nSMOKE TEST SUCCESSFUL!")
         success = True

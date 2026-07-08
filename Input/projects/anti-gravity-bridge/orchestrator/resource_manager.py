@@ -87,6 +87,11 @@ def admit_job(target: str, command_type: str) -> Tuple[bool, str]:
 
     return True, "resources_available"
 
+def is_ollama_unload_allowed() -> bool:
+    """Ollama unload requires explicit opt-in via ALLOW_OLLAMA_UNLOAD=true."""
+    return os.environ.get("ALLOW_OLLAMA_UNLOAD", "").lower() in ("true", "1", "yes")
+
+
 def _apply_mock_vram_unload(freed_mb: int) -> None:
     current = int(os.environ.get("MOCK_VRAM_FREE_MB", "0"))
     os.environ["MOCK_VRAM_FREE_MB"] = str(current + freed_mb)
@@ -94,9 +99,13 @@ def _apply_mock_vram_unload(freed_mb: int) -> None:
 
 async def unload_ollama_model(model_name: str = "gemma4") -> bool:
     """
-    Unloads the active Ollama model weights from GPU VRAM to free resources.
-    Uses the keep_alive: 0 option. MOCK_OLLAMA_UNLOAD enables deterministic tests.
+    Unloads Ollama model weights from GPU VRAM. Requires ALLOW_OLLAMA_UNLOAD=true.
+    MOCK_OLLAMA_UNLOAD enables deterministic tests (also requires the flag).
     """
+    if not is_ollama_unload_allowed():
+        logger.info("Ollama unload skipped: ALLOW_OLLAMA_UNLOAD is not enabled")
+        return False
+
     if os.environ.get("MOCK_OLLAMA_UNLOAD", "").lower() in ("true", "1", "yes"):
         freed_mb = int(os.environ.get("MOCK_VRAM_FREED_MB", "5000"))
         _apply_mock_vram_unload(freed_mb)
@@ -104,11 +113,6 @@ async def unload_ollama_model(model_name: str = "gemma4") -> bool:
             "Mock unloaded Ollama model %s, freed %sMB VRAM", model_name, freed_mb
         )
         return True
-
-    import sys
-    if "pytest" in sys.modules:
-        logger.info("Test environment detected. Skipping real Ollama unload request.")
-        return False
 
     import httpx
     host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434").rstrip("/")
@@ -141,6 +145,12 @@ async def admit_job_with_recovery(
     if admitted:
         return True, reason, False
     if "insufficient_vram" not in reason:
+        return False, reason, False
+
+    if not is_ollama_unload_allowed():
+        logger.info(
+            "VRAM low, but ALLOW_OLLAMA_UNLOAD is not enabled. Skipping VRAM recovery."
+        )
         return False, reason, False
 
     logger.info("VRAM low. Attempting to unload Ollama model '%s'...", model_name)

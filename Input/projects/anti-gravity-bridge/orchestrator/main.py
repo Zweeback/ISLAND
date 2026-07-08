@@ -159,7 +159,12 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
     except Exception as e:
         log.error(f"Failed state transition: {e}")
 
-    event = {"type": "job.started", "job_id": job_id, "target": cmd.target, "command_type": cmd.command_type}
+    event = {
+        "type": "job.validating",
+        "job_id": job_id,
+        "target": cmd.target,
+        "command_type": cmd.command_type,
+    }
     append_event(event)
     await bus.broadcast(event)
 
@@ -191,6 +196,10 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
     if not errors and not cmd.dry_run:
         from orchestrator.resource_manager import admit_job_with_recovery
 
+        admission_event = {"type": "job.admission_check", "job_id": job_id, "target": cmd.target}
+        append_event(admission_event)
+        await bus.broadcast(admission_event)
+
         model_name = os.getenv("OLLAMA_RECOVERY_MODEL", "gemma4")
         admitted, reason, ollama_unloaded = await admit_job_with_recovery(
             cmd.target, cmd.command_type, model_name=model_name
@@ -217,6 +226,14 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
             state.state = "running"
             state.updated_at = utcnow()
             write_job_state(state)
+            started_event = {
+                "type": "job.started",
+                "job_id": job_id,
+                "target": cmd.target,
+                "command_type": cmd.command_type,
+            }
+            append_event(started_event)
+            await bus.broadcast(started_event)
         except Exception as e:
             log.error(f"Failed state transition: {e}")
     else:
@@ -227,10 +244,14 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
             state.error = "; ".join(errors)
             write_job_state(state)
 
-            # Broadcast failure event early
-            event = {"type": "job.failed", "job_id": job_id, "error": state.error}
-            append_event(event)
-            await bus.broadcast(event)
+            # Resource deferrals use job.deferred only; validation errors use job.failed
+            is_resource_defer = any(
+                "insufficient_vram" in err or "insufficient_ram" in err for err in errors
+            )
+            if not is_resource_defer:
+                event = {"type": "job.failed", "job_id": job_id, "error": state.error}
+                append_event(event)
+                await bus.broadcast(event)
         except Exception as e:
             log.error(f"Failed state transition to failed: {e}")
         return
