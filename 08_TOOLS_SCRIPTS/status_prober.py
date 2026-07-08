@@ -80,7 +80,7 @@ def main():
                 "last_error": "none_observed",
                 "source_log": None,
                 "start_command": str(
-                    Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
+                    Path("~") / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
                 ),
                 "stop_command": (
                     f"taskkill /F /PID {gateway_pid}"
@@ -109,7 +109,7 @@ def main():
                 "last_error": "port_closed",
                 "source_log": None,
                 "start_command": str(
-                    Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
+                    Path("~") / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
                 ),
                 "stop_command": "taskkill /F /IM python.exe",
                 "depends_on": [],
@@ -136,7 +136,7 @@ def main():
                 "last_error": "none_observed",
                 "source_log": None,
                 "start_command": str(
-                    Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
+                    Path("~") / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
                 ),
                 "stop_command": (
                     f"taskkill /F /PID {gateway_pid}"
@@ -165,7 +165,7 @@ def main():
                 "last_error": "gateway_offline",
                 "source_log": None,
                 "start_command": str(
-                    Path.home() / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
+                    Path("~") / "Sovereign" / "START_SOVEREIGN_LIVEFEED_DASHBOARD.ps1"
                 ),
                 "stop_command": "taskkill /F /IM python.exe",
                 "depends_on": ["gateway_openclaw"],
@@ -216,7 +216,7 @@ def main():
                 "last_error": "none_observed",
                 "source_log": None,
                 "start_command": str(
-                    Path.home()
+                    Path("~")
                     / "Sovereign"
                     / "core"
                     / "alice_companion"
@@ -249,7 +249,7 @@ def main():
                 "last_error": "port_closed",
                 "source_log": None,
                 "start_command": str(
-                    Path.home()
+                    Path("~")
                     / "Sovereign"
                     / "core"
                     / "alice_companion"
