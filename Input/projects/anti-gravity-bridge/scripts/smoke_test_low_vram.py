@@ -79,7 +79,7 @@ def run_smoke_test():
         print(f"Final Job Error: {error}")
         
         # Assertions
-        assert state == "failed"
+        assert state == "deferred"
         assert "insufficient_vram" in error
 
         r = httpx.get(f"{url}/jobs/{job_id}", timeout=2.0)

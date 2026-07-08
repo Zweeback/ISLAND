@@ -51,7 +51,7 @@ def wait_for_job_completion(job_id: str, timeout: float = 2.0) -> dict:
         res = client.get(f"/jobs/{job_id}")
         assert res.status_code == 200
         data = res.json()
-        if data.get("state") not in ("accepted", "running"):
+        if data.get("state") not in ("accepted", "running", "retrying"):
             return data
         time.sleep(0.05)
     return client.get(f"/jobs/{job_id}").json()
@@ -117,7 +117,7 @@ def test_jit_guard_runtime_change():
     job_id = response.json()["job_id"]
 
     job_state = wait_for_job_completion(job_id)
-    assert job_state["state"] == "failed"
+    assert job_state["state"] == "deferred"
     assert "insufficient_vram" in job_state["error"]
 
     history_states = [h["state"] for h in job_state.get("history", [])]
@@ -243,11 +243,11 @@ def test_state_machine_no_running_on_guard_rejection():
     job_id = response.json()["job_id"]
     job_state = wait_for_job_completion(job_id)
 
-    assert job_state["state"] == "failed"
+    assert job_state["state"] == "deferred"
     history_states = [h["state"] for h in job_state.get("history", [])]
     assert "running" not in history_states
-    assert "failed" in history_states
-    assert history_states[-1] == "failed"
+    assert "deferred" in history_states
+    assert history_states[-1] == "deferred"
 
     events = _job_events(job_id)
     assert not any(_event_matches(e, "job.started", job_id) for e in events)
@@ -317,7 +317,7 @@ def test_no_ollama_unload_without_flag():
     job_id = response.json()["job_id"]
 
     job_state = wait_for_job_completion(job_id)
-    assert job_state["state"] == "failed"
+    assert job_state["state"] == "deferred"
     assert "insufficient_vram" in job_state["error"]
 
     events = client.get("/events?limit=50").json()
@@ -381,7 +381,7 @@ def test_insufficient_vram_no_job_started():
     job_id = response.json()["job_id"]
     job_state = wait_for_job_completion(job_id)
 
-    assert job_state["state"] == "failed"
+    assert job_state["state"] == "deferred"
 
     events = client.get("/events?limit=50").json()
     started_events = [

@@ -43,8 +43,8 @@ def _dispatch_job(client: httpx.Client, label: str, payload: dict) -> dict:
         state = job.get("state")
         error = job.get("error")
         history = job.get("history", [])
-        terminal = state not in ("accepted", "running", "validating", "ready")
-        if terminal or (state == "failed" and error):
+        terminal = state not in ("accepted", "running", "validating", "ready", "retrying")
+        if terminal or (state in ("deferred", "failed") and error):
             break
         time.sleep(0.15)
 
@@ -141,7 +141,7 @@ def run_stress_test() -> bool:
                     )
 
         all_rejected = all(
-            j["state"] == "failed" and j["error"] and "insufficient_vram" in j["error"]
+            j["state"] == "deferred" and j["error"] and "insufficient_vram" in j["error"]
             for j in report["jobs"]
         )
         no_running_leak = all("running" not in j["history_states"] for j in report["jobs"])

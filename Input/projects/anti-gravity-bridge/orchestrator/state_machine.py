@@ -9,13 +9,14 @@ logger = logging.getLogger("anti-gravity-bridge.state_machine")
 ALLOWED_TRANSITIONS: Dict[str, Set[str]] = {
     "queued": {"validating", "cancelled"},
     "accepted": {"validating", "cancelled"},
-    "validating": {"ready", "failed", "cancelled"},
+    "validating": {"ready", "failed", "deferred", "cancelled"},
     "ready": {"running", "cancelled"},
     "running": {"succeeded", "failed", "cancelled"},
+    "deferred": {"retrying", "failed", "cancelled"},
     "failed": {"retrying", "cancelled"},
-    "retrying": {"running", "cancelled"},
+    "retrying": {"running", "deferred", "failed", "cancelled"},
     "succeeded": set(),
-    "cancelled": set()
+    "cancelled": set(),
 }
 
 class JobStateMachine:

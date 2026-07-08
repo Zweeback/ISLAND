@@ -26,6 +26,7 @@ from orchestrator.state_machine import JobStateMachine
 from orchestrator.capabilities import CapabilityRegistry
 from orchestrator.provenance import generate_provenance
 from orchestrator.event_logger import log_event
+from orchestrator.deferred_queue import queue_depth
 
 BASE_DIR = Path(parent_dir)
 ARTIFACTS_DIR = BASE_DIR / "artifacts"
@@ -77,7 +78,7 @@ class JobState(BaseModel):
     command_id: str
     target: str
     command_type: str
-    state: Literal["accepted", "running", "completed", "failed"]
+    state: Literal["accepted", "running", "completed", "failed", "deferred", "retrying"]
     created_at: str
     updated_at: str
     dry_run: bool
@@ -138,6 +139,213 @@ def load_capabilities() -> list[dict[str, Any]]:
     for cap in registry.list_capabilities():
         items.append(cap.model_dump())
     return items
+
+
+def _is_resource_defer_error(errors: List[str]) -> bool:
+    return any("insufficient_vram" in err or "insufficient_ram" in err for err in errors)
+
+
+async def _emit(event: dict[str, Any]) -> None:
+    append_event(event)
+    await bus.broadcast(event)
+
+
+async def execute_admitted_job(cmd: BridgeCommand, job_id: str, sm: JobStateMachine, state: JobState) -> None:
+    artifacts: List[str] = []
+    errors: List[str] = []
+
+    try:
+        if cmd.dry_run:
+            await asyncio.sleep(0.05)
+            artifacts_jobs_dir = JOBS_DIR / job_id
+            artifacts_jobs_dir.mkdir(parents=True, exist_ok=True)
+
+            if cmd.target == "blender":
+                art_file = f"blender_job_{cmd.command_type.split('.')[-1]}_{cmd.payload.get('model_name', 'model')}.glb"
+                marker = artifacts_jobs_dir / art_file
+                marker.write_text(f"MOCK GLB DATA FOR ACTION {cmd.command_type}\n", encoding="utf-8")
+            elif cmd.target == "meshroom":
+                art_file = f"meshroom_reconstruction_{cmd.payload.get('project_id', 'proj')}.obj"
+                marker = artifacts_jobs_dir / art_file
+                marker.write_text(f"# MOCK OBJ RECONSTRUCTION FOR ACTION {cmd.command_type}\n", encoding="utf-8")
+            else:
+                marker = artifacts_jobs_dir / "dry_run.txt"
+                marker.write_text("ok\n", encoding="utf-8")
+
+            artifacts.append(f"artifacts/jobs/{job_id}/{marker.name}")
+        else:
+            loop = asyncio.get_running_loop()
+            if cmd.target == "blender":
+                action = cmd.command_type.split(".")[-1]
+                result = await loop.run_in_executor(
+                    None, lambda: run_blender_command(action=action, payload=cmd.payload)
+                )
+                if result.get("success"):
+                    artifacts = result.get("artifacts", [])
+                else:
+                    errors.append(result.get("error", "Unknown Blender error"))
+            elif cmd.target == "meshroom":
+                action = cmd.command_type.split(".")[-1]
+                result = await loop.run_in_executor(
+                    None, lambda: run_meshroom_pipeline(action=action, payload=cmd.payload)
+                )
+                if result.get("success"):
+                    artifacts = result.get("artifacts", [])
+                else:
+                    errors.append(result.get("error", "Unknown Meshroom error"))
+            elif cmd.target == "unity":
+                report_name = "unity_sync_report.json"
+                report_path = JOBS_DIR / job_id / report_name
+                report_path.parent.mkdir(parents=True, exist_ok=True)
+                report_path.write_text('{"status": "success", "synced_assets_count": 0}\n', encoding="utf-8")
+                artifacts.append(f"artifacts/jobs/{job_id}/{report_name}")
+            else:
+                errors.append(f"Unsupported target: {cmd.target}")
+    except Exception as exc:
+        errors.append(str(exc))
+
+    input_files = []
+    if "images_dir" in cmd.payload:
+        img_dir = cmd.payload["images_dir"]
+        full_img_dir = Path(img_dir) if os.path.isabs(img_dir) else BASE_DIR / img_dir
+        if full_img_dir.is_dir():
+            try:
+                for f in os.listdir(full_img_dir):
+                    fpath = full_img_dir / f
+                    if fpath.is_file():
+                        input_files.append(str(Path(img_dir) / f).replace("\\", "/"))
+            except Exception:
+                pass
+        else:
+            input_files.append(img_dir)
+
+    artifacts_str = [str(art).replace("\\", "/") for art in artifacts]
+    generate_provenance(
+        job_id=job_id,
+        command={"command_type": cmd.command_type, "payload": cmd.payload},
+        input_files=input_files,
+        output_files=artifacts_str,
+    )
+
+    if errors:
+        state.state = "failed"
+        state.updated_at = utcnow()
+        state.error = "; ".join(errors)
+        write_job_state(state)
+        try:
+            sm.transition_to("failed", reason=state.error)
+        except Exception:
+            pass
+        await _emit({"type": "job.failed", "job_id": job_id, "error": state.error})
+    else:
+        state.state = "completed"
+        state.updated_at = utcnow()
+        state.artifacts = artifacts_str
+        write_job_state(state)
+        try:
+            sm.transition_to("succeeded", reason="Job completed successfully")
+        except Exception:
+            pass
+        await _emit({"type": "job.completed", "job_id": job_id, "artifacts": artifacts_str})
+
+
+async def retry_deferred_entry(entry: dict[str, Any]) -> None:
+    from orchestrator.deferred_queue import load_deferred_entry, save_deferred_entry, remove_deferred_entry
+    from orchestrator.resource_manager import admit_job_with_recovery
+    from orchestrator.retry_scheduler import mark_retry_scheduled, mark_retry_exhausted
+
+    job_id = entry["job_id"]
+    current = load_deferred_entry(job_id)
+    if not current:
+        return
+
+    cmd = BridgeCommand(**current["command"])
+    sm = JobStateMachine(job_id)
+    if sm.state not in ("deferred", "retrying"):
+        remove_deferred_entry(job_id)
+        return
+
+    state_data = json.loads((JOBS_DIR / job_id / "job_state.json").read_text(encoding="utf-8"))
+    state = JobState(
+        job_id=job_id,
+        command_id=state_data.get("command_id", cmd.command_id),
+        target=cmd.target,
+        command_type=cmd.command_type,
+        state="retrying",
+        created_at=state_data.get("created_at", utcnow()),
+        updated_at=utcnow(),
+        dry_run=cmd.dry_run,
+        error=current.get("reason"),
+    )
+
+    try:
+        sm.transition_to("retrying", reason=f"Retry attempt {current['retry_count'] + 1}")
+    except Exception as exc:
+        log.error("Failed transition to retrying for %s: %s", job_id, exc)
+        current["dispatching"] = False
+        save_deferred_entry(current)
+        return
+
+    state.state = "retrying"
+    write_job_state(state)
+    await _emit({"type": "job.retrying", "job_id": job_id, "attempt": current["retry_count"] + 1})
+
+    model_name = os.getenv("OLLAMA_RECOVERY_MODEL", "gemma4")
+    admitted, reason, ollama_unloaded = await admit_job_with_recovery(
+        cmd.target, cmd.command_type, model_name=model_name
+    )
+    if ollama_unloaded and admitted:
+        await _emit({
+            "type": "job.ollama_unloaded",
+            "job_id": job_id,
+            "detail": f"Unloaded {model_name} model to satisfy job VRAM requirements",
+        })
+
+    if not admitted:
+        if current["retry_count"] + 1 >= current.get("max_retries", 5):
+            try:
+                sm.transition_to("failed", reason=f"retry_exhausted: {reason}")
+            except Exception:
+                pass
+            state.state = "failed"
+            state.error = f"retry_exhausted: {reason}"
+            state.updated_at = utcnow()
+            write_job_state(state)
+            mark_retry_exhausted(current)
+            await _emit({"type": "job.retry_exhausted", "job_id": job_id, "error": state.error})
+            return
+
+        try:
+            sm.transition_to("deferred", reason=reason)
+        except Exception:
+            pass
+        state.state = "deferred"
+        state.error = reason
+        state.updated_at = utcnow()
+        write_job_state(state)
+        mark_retry_scheduled(current, reason)
+        await _emit({"type": "job.deferred", "job_id": job_id, "reason": reason})
+        return
+
+    remove_deferred_entry(job_id)
+    try:
+        sm.transition_to("running", reason="Resources available on retry")
+    except Exception as exc:
+        log.error("Failed transition to running for %s: %s", job_id, exc)
+        return
+
+    state.state = "running"
+    state.updated_at = utcnow()
+    state.error = None
+    write_job_state(state)
+    await _emit({
+        "type": "job.started",
+        "job_id": job_id,
+        "target": cmd.target,
+        "command_type": cmd.command_type,
+    })
+    await execute_admitted_job(cmd, job_id, sm, state)
+
 
 async def run_job(cmd: BridgeCommand, job_id: str) -> None:
     started = utcnow()
@@ -237,132 +445,53 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
         except Exception as e:
             log.error(f"Failed state transition: {e}")
     else:
+        error_text = "; ".join(errors)
+        if _is_resource_defer_error(errors):
+            from orchestrator.deferred_queue import enqueue_deferred_job
+
+            try:
+                sm.transition_to("deferred", reason=error_text)
+            except Exception as e:
+                log.error(f"Failed state transition to deferred: {e}")
+            state.state = "deferred"
+            state.updated_at = utcnow()
+            state.error = error_text
+            write_job_state(state)
+            enqueue_deferred_job(job_id, cmd.model_dump(), errors[0])
+            return
+
         try:
-            sm.transition_to("failed", reason="; ".join(errors))
+            sm.transition_to("failed", reason=error_text)
             state.state = "failed"
             state.updated_at = utcnow()
-            state.error = "; ".join(errors)
+            state.error = error_text
             write_job_state(state)
-
-            # Resource deferrals use job.deferred only; validation errors use job.failed
-            is_resource_defer = any(
-                "insufficient_vram" in err or "insufficient_ram" in err for err in errors
-            )
-            if not is_resource_defer:
-                event = {"type": "job.failed", "job_id": job_id, "error": state.error}
-                append_event(event)
-                await bus.broadcast(event)
+            await _emit({"type": "job.failed", "job_id": job_id, "error": state.error})
         except Exception as e:
             log.error(f"Failed state transition to failed: {e}")
         return
 
-    try:
-        if not errors:
-            if cmd.dry_run:
-                await asyncio.sleep(0.05)
-                artifacts_jobs_dir = JOBS_DIR / job_id
-                artifacts_jobs_dir.mkdir(parents=True, exist_ok=True)
+    await execute_admitted_job(cmd, job_id, sm, state)
 
-                if cmd.target == "blender":
-                    art_file = f"blender_job_{cmd.command_type.split('.')[-1]}_{cmd.payload.get('model_name', 'model')}.glb"
-                    marker = artifacts_jobs_dir / art_file
-                    marker.write_text(f"MOCK GLB DATA FOR ACTION {cmd.command_type}\n", encoding="utf-8")
-                elif cmd.target == "meshroom":
-                    art_file = f"meshroom_reconstruction_{cmd.payload.get('project_id', 'proj')}.obj"
-                    marker = artifacts_jobs_dir / art_file
-                    marker.write_text(f"# MOCK OBJ RECONSTRUCTION FOR ACTION {cmd.command_type}\n", encoding="utf-8")
-                else:
-                    marker = artifacts_jobs_dir / "dry_run.txt"
-                    marker.write_text("ok\n", encoding="utf-8")
+_scheduler_task: asyncio.Task | None = None
 
-                artifacts.append(f"artifacts/jobs/{job_id}/{marker.name}")
-            else:
-                # Real execution calling runners
-                loop = asyncio.get_running_loop()
-                if cmd.target == "blender":
-                    action = cmd.command_type.split(".")[-1]
-                    result = await loop.run_in_executor(None, lambda: run_blender_command(action=action, payload=cmd.payload))
-                    if result.get("success"):
-                        artifacts = result.get("artifacts", [])
-                    else:
-                        errors.append(result.get("error", "Unknown Blender error"))
-                elif cmd.target == "meshroom":
-                    action = cmd.command_type.split(".")[-1]
-                    result = await loop.run_in_executor(None, lambda: run_meshroom_pipeline(action=action, payload=cmd.payload))
-                    if result.get("success"):
-                        artifacts = result.get("artifacts", [])
-                    else:
-                        errors.append(result.get("error", "Unknown Meshroom error"))
-                elif cmd.target == "unity":
-                    report_name = "unity_sync_report.json"
-                    report_path = JOBS_DIR / job_id / report_name
-                    report_path.parent.mkdir(parents=True, exist_ok=True)
-                    report_path.write_text('{"status": "success", "synced_assets_count": 0}\n', encoding="utf-8")
-                    artifacts.append(f"artifacts/jobs/{job_id}/{report_name}")
-                else:
-                    errors.append(f"Unsupported target: {cmd.target}")
-    except Exception as exc:
-        errors.append(str(exc))
-
-    # Generate provenance manifest
-    input_files = []
-    if "images_dir" in cmd.payload:
-        img_dir = cmd.payload["images_dir"]
-        full_img_dir = Path(img_dir) if os.path.isabs(img_dir) else BASE_DIR / img_dir
-        if full_img_dir.is_dir():
-            try:
-                for f in os.listdir(full_img_dir):
-                    fpath = full_img_dir / f
-                    if fpath.is_file():
-                        input_files.append(str(Path(img_dir) / f).replace("\\", "/"))
-            except Exception:
-                pass
-        else:
-            input_files.append(img_dir)
-
-    # Convert paths to string representation
-    artifacts_str = [str(art).replace("\\", "/") for art in artifacts]
-
-    generate_provenance(
-        job_id=job_id,
-        command={"command_type": cmd.command_type, "payload": cmd.payload},
-        input_files=input_files,
-        output_files=artifacts_str
-    )
-
-    if errors:
-        state.state = "failed"
-        state.updated_at = utcnow()
-        state.error = "; ".join(errors)
-        write_job_state(state)
-
-        try:
-            sm.transition_to("failed", reason=state.error)
-        except Exception:
-            pass
-
-        event = {"type": "job.failed", "job_id": job_id, "error": state.error}
-        append_event(event)
-        await bus.broadcast(event)
-    else:
-        state.state = "completed"
-        state.updated_at = utcnow()
-        state.artifacts = artifacts_str
-        write_job_state(state)
-
-        try:
-            sm.transition_to("succeeded", reason="Job completed successfully")
-        except Exception:
-            pass
-
-        event = {"type": "job.completed", "job_id": job_id, "artifacts": artifacts_str}
-        append_event(event)
-        await bus.broadcast(event)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _scheduler_task
+    from orchestrator.retry_scheduler import retry_scheduler_loop
+
     append_event({"type": "service.started", "service": settings.app_name})
+    if os.environ.get("DISABLE_DEFERRED_SCHEDULER", "").lower() not in ("true", "1", "yes"):
+        if "pytest" not in sys.modules:
+            _scheduler_task = asyncio.create_task(retry_scheduler_loop(retry_deferred_entry))
     yield
+    if _scheduler_task:
+        _scheduler_task.cancel()
+        try:
+            await _scheduler_task
+        except asyncio.CancelledError:
+            pass
     append_event({"type": "service.stopped", "service": settings.app_name})
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
@@ -382,7 +511,7 @@ async def health() -> dict[str, Any]:
         "capabilities": len(caps),
         "capabilities_total": len(caps),
         "capabilities_healthy": len(caps),
-        "queue_depth": 0,
+        "queue_depth": queue_depth(),
     }
 
 @app.get("/capabilities")
@@ -526,7 +655,10 @@ async def get_job(job_id: str) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if "state" not in data and "current_state" in data:
         state = data["current_state"]
-        data["state"] = "completed" if state == "succeeded" else state
+        if state == "succeeded":
+            data["state"] = "completed"
+        else:
+            data["state"] = state
     return data
 
 @app.websocket("/ws/events")
