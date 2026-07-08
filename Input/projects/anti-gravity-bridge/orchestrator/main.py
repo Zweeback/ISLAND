@@ -12,7 +12,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Literal, Optional
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, BackgroundTasks
+from fastapi import (
+    FastAPI,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    BackgroundTasks,
+)
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 # Setup path to allow importing sibling packages (blender, meshroom)
@@ -38,8 +44,11 @@ EVENTS_DIR.mkdir(parents=True, exist_ok=True)
 JOBS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Initialize logger
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
 log = logging.getLogger("anti-gravity-bridge")
+
 
 class Settings:
     app_name: str = "anti-gravity-bridge"
@@ -47,14 +56,16 @@ class Settings:
     bridge_token: str = os.getenv("BRIDGE_TOKEN", "dev-token")
     capabilities_dir: Path = BASE_DIR / "capabilities"
 
+
 settings = Settings()
 registry = CapabilityRegistry(capabilities_dir=str(settings.capabilities_dir))
+
 
 class BridgeCommand(BaseModel):
     schema_version: Literal["bridge.command.v1"] = "bridge.command.v1"
     command_id: str = Field(default_factory=lambda: f"cmd_{uuid.uuid4().hex[:12]}")
-    mission_id: str | None = None
-    job_id: str | None = None
+    mission_id: Optional[str] = None
+    job_id: Optional[str] = None
     command_type: str
     target: Literal["unity", "blender", "meshroom", "github"]
     dry_run: bool = False
@@ -63,6 +74,7 @@ class BridgeCommand(BaseModel):
     constraints: Dict[str, Any] = Field(default_factory=dict)
     provenance: Dict[str, Any] = Field(default_factory=dict)
 
+
 class LegacyCommand(BaseModel):
     schema_version: str
     command_id: str
@@ -70,9 +82,11 @@ class LegacyCommand(BaseModel):
     action: str
     payload: Dict[str, Any] = Field(default_factory=dict)
 
+
 class LegacyJobRequest(BaseModel):
     job_type: str
     payload: Dict[str, Any] = Field(default_factory=dict)
+
 
 class JobState(BaseModel):
     job_id: str
@@ -84,7 +98,8 @@ class JobState(BaseModel):
     updated_at: str
     dry_run: bool
     artifacts: List[str] = Field(default_factory=list)
-    error: str | None = None
+    error: Optional[str] = None
+
 
 class LLMOutputModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -95,7 +110,9 @@ class LLMOutputModel(BaseModel):
         "meshroom.photogrammetry_reconstruct",
         "unity.sync_assets",
     ]
-    scale: List[float] = Field(default_factory=lambda: [1.0, 1.0, 1.0], min_length=3, max_length=3)
+    scale: List[float] = Field(
+        default_factory=lambda: [1.0, 1.0, 1.0], min_length=3, max_length=3
+    )
     radius: float = Field(default=1.0, ge=0.01, le=100.0)
     output_path: str = Field(default="", max_length=240)
 
@@ -116,6 +133,7 @@ class LLMOutputModel(BaseModel):
             raise ValueError("output_path must be a safe relative path")
         return value
 
+
 class EventBus:
     def __init__(self) -> None:
         self.clients: set[WebSocket] = set()
@@ -130,14 +148,18 @@ class EventBus:
         for ws in dead:
             self.clients.discard(ws)
 
+
 bus = EventBus()
+
 
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
+
 def append_event(event: dict[str, Any]) -> None:
     event["time_utc"] = utcnow()
     log_event(event.get("type", "generic_event"), event)
+
 
 def write_job_state(state: JobState) -> None:
     job_dir = JOBS_DIR / state.job_id
@@ -159,6 +181,7 @@ def write_job_state(state: JobState) -> None:
     data["current_state"] = state.state
     path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
+
 def load_capabilities() -> list[dict[str, Any]]:
     items = []
     for cap in registry.list_capabilities():
@@ -167,7 +190,9 @@ def load_capabilities() -> list[dict[str, Any]]:
 
 
 def _is_resource_defer_error(errors: List[str]) -> bool:
-    return any("insufficient_vram" in err or "insufficient_ram" in err for err in errors)
+    return any(
+        "insufficient_vram" in err or "insufficient_ram" in err for err in errors
+    )
 
 
 async def _emit(event: dict[str, Any]) -> None:
@@ -175,7 +200,9 @@ async def _emit(event: dict[str, Any]) -> None:
     await bus.broadcast(event)
 
 
-async def execute_admitted_job(cmd: BridgeCommand, job_id: str, sm: JobStateMachine, state: JobState) -> None:
+async def execute_admitted_job(
+    cmd: BridgeCommand, job_id: str, sm: JobStateMachine, state: JobState
+) -> None:
     artifacts: List[str] = []
     errors: List[str] = []
 
@@ -188,11 +215,16 @@ async def execute_admitted_job(cmd: BridgeCommand, job_id: str, sm: JobStateMach
             if cmd.target == "blender":
                 art_file = f"blender_job_{cmd.command_type.split('.')[-1]}_{cmd.payload.get('model_name', 'model')}.glb"
                 marker = artifacts_jobs_dir / art_file
-                marker.write_text(f"MOCK GLB DATA FOR ACTION {cmd.command_type}\n", encoding="utf-8")
+                marker.write_text(
+                    f"MOCK GLB DATA FOR ACTION {cmd.command_type}\n", encoding="utf-8"
+                )
             elif cmd.target == "meshroom":
                 art_file = f"meshroom_reconstruction_{cmd.payload.get('project_id', 'proj')}.obj"
                 marker = artifacts_jobs_dir / art_file
-                marker.write_text(f"# MOCK OBJ RECONSTRUCTION FOR ACTION {cmd.command_type}\n", encoding="utf-8")
+                marker.write_text(
+                    f"# MOCK OBJ RECONSTRUCTION FOR ACTION {cmd.command_type}\n",
+                    encoding="utf-8",
+                )
             else:
                 marker = artifacts_jobs_dir / "dry_run.txt"
                 marker.write_text("ok\n", encoding="utf-8")
@@ -203,7 +235,8 @@ async def execute_admitted_job(cmd: BridgeCommand, job_id: str, sm: JobStateMach
             if cmd.target == "blender":
                 action = cmd.command_type.split(".")[-1]
                 result = await loop.run_in_executor(
-                    None, lambda: run_blender_command(action=action, payload=cmd.payload)
+                    None,
+                    lambda: run_blender_command(action=action, payload=cmd.payload),
                 )
                 if result.get("success"):
                     artifacts = result.get("artifacts", [])
@@ -212,7 +245,8 @@ async def execute_admitted_job(cmd: BridgeCommand, job_id: str, sm: JobStateMach
             elif cmd.target == "meshroom":
                 action = cmd.command_type.split(".")[-1]
                 result = await loop.run_in_executor(
-                    None, lambda: run_meshroom_pipeline(action=action, payload=cmd.payload)
+                    None,
+                    lambda: run_meshroom_pipeline(action=action, payload=cmd.payload),
                 )
                 if result.get("success"):
                     artifacts = result.get("artifacts", [])
@@ -222,7 +256,10 @@ async def execute_admitted_job(cmd: BridgeCommand, job_id: str, sm: JobStateMach
                 report_name = "unity_sync_report.json"
                 report_path = JOBS_DIR / job_id / report_name
                 report_path.parent.mkdir(parents=True, exist_ok=True)
-                report_path.write_text('{"status": "success", "synced_assets_count": 0}\n', encoding="utf-8")
+                report_path.write_text(
+                    '{"status": "success", "synced_assets_count": 0}\n',
+                    encoding="utf-8",
+                )
                 artifacts.append(f"artifacts/jobs/{job_id}/{report_name}")
             else:
                 errors.append(f"Unsupported target: {cmd.target}")
@@ -271,11 +308,17 @@ async def execute_admitted_job(cmd: BridgeCommand, job_id: str, sm: JobStateMach
             sm.transition_to("succeeded", reason="Job completed successfully")
         except Exception:
             pass
-        await _emit({"type": "job.completed", "job_id": job_id, "artifacts": artifacts_str})
+        await _emit(
+            {"type": "job.completed", "job_id": job_id, "artifacts": artifacts_str}
+        )
 
 
 async def retry_deferred_entry(entry: dict[str, Any]) -> None:
-    from orchestrator.deferred_queue import load_deferred_entry, save_deferred_entry, remove_deferred_entry
+    from orchestrator.deferred_queue import (
+        load_deferred_entry,
+        save_deferred_entry,
+        remove_deferred_entry,
+    )
     from orchestrator.resource_manager import admit_job_with_recovery
     from orchestrator.retry_scheduler import mark_retry_scheduled, mark_retry_exhausted
 
@@ -290,7 +333,9 @@ async def retry_deferred_entry(entry: dict[str, Any]) -> None:
         remove_deferred_entry(job_id)
         return
 
-    state_data = json.loads((JOBS_DIR / job_id / "job_state.json").read_text(encoding="utf-8"))
+    state_data = json.loads(
+        (JOBS_DIR / job_id / "job_state.json").read_text(encoding="utf-8")
+    )
     state = JobState(
         job_id=job_id,
         command_id=state_data.get("command_id", cmd.command_id),
@@ -304,7 +349,9 @@ async def retry_deferred_entry(entry: dict[str, Any]) -> None:
     )
 
     try:
-        sm.transition_to("retrying", reason=f"Retry attempt {current['retry_count'] + 1}")
+        sm.transition_to(
+            "retrying", reason=f"Retry attempt {current['retry_count'] + 1}"
+        )
     except Exception as exc:
         log.error("Failed transition to retrying for %s: %s", job_id, exc)
         current["dispatching"] = False
@@ -313,18 +360,26 @@ async def retry_deferred_entry(entry: dict[str, Any]) -> None:
 
     state.state = "retrying"
     write_job_state(state)
-    await _emit({"type": "job.retrying", "job_id": job_id, "attempt": current["retry_count"] + 1})
+    await _emit(
+        {
+            "type": "job.retrying",
+            "job_id": job_id,
+            "attempt": current["retry_count"] + 1,
+        }
+    )
 
     model_name = os.getenv("OLLAMA_RECOVERY_MODEL", "gemma4")
     admitted, reason, ollama_unloaded = await admit_job_with_recovery(
         cmd.target, cmd.command_type, model_name=model_name
     )
     if ollama_unloaded and admitted:
-        await _emit({
-            "type": "job.ollama_unloaded",
-            "job_id": job_id,
-            "detail": f"Unloaded {model_name} model to satisfy job VRAM requirements",
-        })
+        await _emit(
+            {
+                "type": "job.ollama_unloaded",
+                "job_id": job_id,
+                "detail": f"Unloaded {model_name} model to satisfy job VRAM requirements",
+            }
+        )
 
     if not admitted:
         if current["retry_count"] + 1 >= current.get("max_retries", 5):
@@ -337,7 +392,9 @@ async def retry_deferred_entry(entry: dict[str, Any]) -> None:
             state.updated_at = utcnow()
             write_job_state(state)
             mark_retry_exhausted(current)
-            await _emit({"type": "job.retry_exhausted", "job_id": job_id, "error": state.error})
+            await _emit(
+                {"type": "job.retry_exhausted", "job_id": job_id, "error": state.error}
+            )
             return
 
         try:
@@ -363,12 +420,14 @@ async def retry_deferred_entry(entry: dict[str, Any]) -> None:
     state.updated_at = utcnow()
     state.error = None
     write_job_state(state)
-    await _emit({
-        "type": "job.started",
-        "job_id": job_id,
-        "target": cmd.target,
-        "command_type": cmd.command_type,
-    })
+    await _emit(
+        {
+            "type": "job.started",
+            "job_id": job_id,
+            "target": cmd.target,
+            "command_type": cmd.command_type,
+        }
+    )
     await execute_admitted_job(cmd, job_id, sm, state)
 
 
@@ -388,7 +447,9 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
     # State machine transition to validating -> ready -> running
     sm = JobStateMachine(job_id, initial_state="accepted")
     try:
-        sm.transition_to("validating", reason="Checking capability registration and payload")
+        sm.transition_to(
+            "validating", reason="Checking capability registration and payload"
+        )
     except Exception as e:
         log.error(f"Failed state transition: {e}")
 
@@ -430,7 +491,11 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
     if not errors and not cmd.dry_run:
         from orchestrator.resource_manager import admit_job_with_recovery
 
-        admission_event = {"type": "job.admission_check", "job_id": job_id, "target": cmd.target}
+        admission_event = {
+            "type": "job.admission_check",
+            "job_id": job_id,
+            "target": cmd.target,
+        }
         append_event(admission_event)
         await bus.broadcast(admission_event)
 
@@ -499,6 +564,7 @@ async def run_job(cmd: BridgeCommand, job_id: str) -> None:
 
     await execute_admitted_job(cmd, job_id, sm, state)
 
+
 _scheduler_task: asyncio.Task | None = None
 
 
@@ -508,9 +574,15 @@ async def lifespan(app: FastAPI):
     from orchestrator.retry_scheduler import retry_scheduler_loop
 
     append_event({"type": "service.started", "service": settings.app_name})
-    if os.environ.get("DISABLE_DEFERRED_SCHEDULER", "").lower() not in ("true", "1", "yes"):
+    if os.environ.get("DISABLE_DEFERRED_SCHEDULER", "").lower() not in (
+        "true",
+        "1",
+        "yes",
+    ):
         if "pytest" not in sys.modules:
-            _scheduler_task = asyncio.create_task(retry_scheduler_loop(retry_deferred_entry))
+            _scheduler_task = asyncio.create_task(
+                retry_scheduler_loop(retry_deferred_entry)
+            )
     yield
     if _scheduler_task:
         _scheduler_task.cancel()
@@ -520,7 +592,9 @@ async def lifespan(app: FastAPI):
             pass
     append_event({"type": "service.stopped", "service": settings.app_name})
 
+
 app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
+
 
 @app.get("/health")
 async def health() -> dict[str, Any]:
@@ -540,9 +614,11 @@ async def health() -> dict[str, Any]:
         "queue_depth": queue_depth(),
     }
 
+
 @app.get("/capabilities")
 async def capabilities() -> list[dict[str, Any]]:
     return load_capabilities()
+
 
 @app.get("/events")
 async def list_events(limit: int = 100) -> list[dict[str, Any]]:
@@ -554,7 +630,7 @@ async def list_events(limit: int = 100) -> list[dict[str, Any]]:
         lines = [line.strip() for line in f.readlines() if line.strip()]
 
     events: list[dict[str, Any]] = []
-    for line in lines[-max(1, min(limit, 1000)):]:
+    for line in lines[-max(1, min(limit, 1000)) :]:
         event = json.loads(line)
         data = event.get("data")
         if "type" not in event:
@@ -567,6 +643,7 @@ async def list_events(limit: int = 100) -> list[dict[str, Any]]:
         events.append(event)
     return events
 
+
 @app.post("/command")
 async def legacy_command(cmd: LegacyCommand) -> dict[str, Any]:
     if cmd.schema_version != "1.0.0":
@@ -574,19 +651,22 @@ async def legacy_command(cmd: LegacyCommand) -> dict[str, Any]:
     if cmd.target not in {"unity", "blender", "meshroom", "github"}:
         raise HTTPException(status_code=400, detail="Unsupported target")
 
-    append_event({
-        "type": "legacy.command.received",
-        "event": "CommandReceived",
-        "command_id": cmd.command_id,
-        "target": cmd.target,
-        "action": cmd.action,
-    })
+    append_event(
+        {
+            "type": "legacy.command.received",
+            "event": "CommandReceived",
+            "command_id": cmd.command_id,
+            "target": cmd.target,
+            "action": cmd.action,
+        }
+    )
     return {
         "success": True,
         "command_id": cmd.command_id,
         "target": cmd.target,
         "action": cmd.action,
     }
+
 
 def _legacy_capability_for(job_type: str, payload: dict[str, Any]) -> str:
     action = payload.get("action")
@@ -597,6 +677,7 @@ def _legacy_capability_for(job_type: str, payload: dict[str, Any]) -> str:
     if job_type in {"unity", "sync"}:
         return "unity.sync_assets"
     return "blender.render_scene"
+
 
 @app.post("/jobs")
 async def legacy_create_job(job: LegacyJobRequest) -> dict[str, Any]:
@@ -611,17 +692,23 @@ async def legacy_create_job(job: LegacyJobRequest) -> dict[str, Any]:
 
     generate_provenance(
         job_id=job_id,
-        command={"job_type": job.job_type, "payload": job.payload, "capability_id": capability_id},
+        command={
+            "job_type": job.job_type,
+            "payload": job.payload,
+            "capability_id": capability_id,
+        },
         input_files=[],
         output_files=[],
     )
-    append_event({
-        "type": "legacy.job.queued",
-        "event": "CommandReceived",
-        "job_id": job_id,
-        "job_type": job.job_type,
-        "capability_id": capability_id,
-    })
+    append_event(
+        {
+            "type": "legacy.job.queued",
+            "event": "CommandReceived",
+            "job_id": job_id,
+            "job_type": job.job_type,
+            "capability_id": capability_id,
+        }
+    )
 
     return {
         "job_id": job_id,
@@ -632,6 +719,7 @@ async def legacy_create_job(job: LegacyJobRequest) -> dict[str, Any]:
         "job_state_path": str(state_path).replace("\\", "/"),
         "provenance_path": provenance_rel,
     }
+
 
 @app.get("/jobs")
 async def legacy_list_jobs() -> list[dict[str, Any]]:
@@ -644,6 +732,7 @@ async def legacy_list_jobs() -> list[dict[str, Any]]:
         except Exception:
             continue
     return jobs
+
 
 @app.post("/api/bridge/command", status_code=202)
 async def bridge_command(cmd: BridgeCommand) -> dict[str, Any]:
@@ -673,6 +762,7 @@ async def bridge_command(cmd: BridgeCommand) -> dict[str, Any]:
     asyncio.create_task(run_job(cmd, job_id))
     return {"accepted": True, "job_id": job_id, "command_id": cmd.command_id}
 
+
 @app.get("/jobs/{job_id}")
 async def get_job(job_id: str) -> dict[str, Any]:
     path = JOBS_DIR / job_id / "job_state.json"
@@ -687,6 +777,7 @@ async def get_job(job_id: str) -> dict[str, Any]:
             data["state"] = state
     return data
 
+
 @app.websocket("/ws/events")
 async def ws_events(ws: WebSocket) -> None:
     await ws.accept()
@@ -697,13 +788,16 @@ async def ws_events(ws: WebSocket) -> None:
     except WebSocketDisconnect:
         bus.clients.discard(ws)
 
+
 if __name__ == "__main__":
     import argparse
     import asyncio
     import uvicorn
 
     parser = argparse.ArgumentParser(description="Anti-Gravity Bridge entry point")
-    parser.add_argument("command", nargs="?", default="runserver", help="runserver or run_dag")
+    parser.add_argument(
+        "command", nargs="?", default="runserver", help="runserver or run_dag"
+    )
     args = parser.parse_args()
 
     if args.command == "run_dag":
@@ -742,4 +836,3 @@ if __name__ == "__main__":
         print("DAG execution completed. Node states:", dag.node_states)
     else:
         uvicorn.run("main:app", host="127.0.0.1", port=8420, reload=True)
-

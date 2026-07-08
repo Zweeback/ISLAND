@@ -57,7 +57,9 @@ def _event_matches(job_event: dict, event_type: str, target_job_id: str) -> bool
     event_kind = job_event.get("type") or job_event.get("event")
     if event_kind != event_type:
         return False
-    payload = job_event.get("data") if isinstance(job_event.get("data"), dict) else job_event
+    payload = (
+        job_event.get("data") if isinstance(job_event.get("data"), dict) else job_event
+    )
     return payload.get("job_id") == target_job_id
 
 
@@ -267,7 +269,11 @@ def test_stale_claim_can_be_reclaimed():
     job_id = response.json()["job_id"]
     wait_for_state(job_id, {"deferred"})
 
-    stale_at = (datetime.now(timezone.utc) - timedelta(seconds=600)).isoformat().replace("+00:00", "Z")
+    stale_at = (
+        (datetime.now(timezone.utc) - timedelta(seconds=600))
+        .isoformat()
+        .replace("+00:00", "Z")
+    )
     entry = load_deferred_entry(job_id)
     entry["dispatching"] = True
     entry["claimed_at"] = stale_at
@@ -298,7 +304,7 @@ def test_deferred_payload_excludes_secrets():
             "dry_run": False,
             "payload": {
                 "images_dir": "test_input",
-                "api_key": "sk-live-secret",
+                "api_key": "mock_api_secret_key",
                 "nested": {"access_token": "abc123"},
             },
         },
@@ -311,12 +317,14 @@ def test_deferred_payload_excludes_secrets():
     assert payload["api_key"] == REDACTED
     assert payload["nested"]["access_token"] == REDACTED
     assert payload["images_dir"] == "test_input"
-    assert "sk-live-secret" not in json.dumps(entry)
+    assert "mock_api_secret_key" not in json.dumps(entry)
     remove_deferred_entry(job_id)
 
 
 def test_failed_cannot_transition_to_retrying():
-    sm = JobStateMachine(f"test-failed-no-retry-{uuid.uuid4().hex}", initial_state="validating")
+    sm = JobStateMachine(
+        f"test-failed-no-retry-{uuid.uuid4().hex}", initial_state="validating"
+    )
     sm.transition_to("failed", reason="hard subprocess failure")
     with pytest.raises(ValueError):
         sm.transition_to("retrying")
