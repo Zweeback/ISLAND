@@ -159,6 +159,8 @@ def validate_manifest(path: Path) -> list[str]:
             if expiry and expiry < datetime.now(expiry.tzinfo or timezone.utc):
                 errors.append(f"{record_id}: ACTIVE verification is expired")
 
+    active_ids = {k for k, v in state_by_id.items() if v in ACTIVE_STATES}
+
     for item in records:
         record_id = str(item.get("id"))
         needs_verified_deps = (
@@ -168,14 +170,27 @@ def validate_manifest(path: Path) -> list[str]:
         )
         if not needs_verified_deps:
             continue
-        for dep in item.get("depends_on") or []:
-            dep_state = state_by_id.get(str(dep))
-            if dep_state is None:
-                errors.append(f"{record_id}: dependency not found: {dep}")
-            elif dep_state not in ACTIVE_STATES:
-                errors.append(
-                    f"{record_id}: dependency {dep} is not verified/active: {dep_state}"
-                )
+
+        deps = item.get("depends_on")
+        if not deps:
+            continue
+
+        # Fast path check using set difference
+        missing_or_inactive = set(str(d) for d in deps) - active_ids
+        if not missing_or_inactive:
+            continue
+
+        # Report specific errors for the problematic dependencies
+        # (Preserving original order by iterating over the original list)
+        for dep in deps:
+            dep_str = str(dep)
+            if dep_str in missing_or_inactive:
+                if dep_str not in state_by_id:
+                    errors.append(f"{record_id}: dependency not found: {dep}")
+                else:
+                    errors.append(
+                        f"{record_id}: dependency {dep} is not verified/active: {state_by_id[dep_str]}"
+                    )
     return errors
 
 
