@@ -26,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
+      ROUTER_PROMPT: ${{ inputs.prompt }}
       PROVIDER_ORDER: ${{ inputs.provider_order }}
       GITHUB_MODELS_TOKEN: ${{ github.token }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -46,8 +47,8 @@ jobs:
         run: |
           set +e
           python3 cloud_runner/router.py \
-            --prompt '${{ inputs.prompt }}' \
-            --providers '${{ inputs.provider_order }}' \
+            --prompt "$ROUTER_PROMPT" \
+            --providers "$PROVIDER_ORDER" \
             --output cloud_runner_result.json
           status=$?
           cat cloud_runner_result.json
