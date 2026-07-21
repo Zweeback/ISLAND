@@ -1,0 +1,8 @@
+{
+    "project": "GTA Dortmund-H\u00f6rde MVP",
+    "version": "0.3",
+    "status": "Verified & Optimized",
+    "zero_trust_compliance": true,
+    "max_ram_target_mb": 350,
+    "streaming_grid_size": 100.0
+}
