@@ -1,0 +1,62 @@
+name: Free Multi-LLM Cloud Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      prompt:
+        description: Prompt to send through the fallback router
+        required: true
+        type: string
+      provider_order:
+        description: Comma-separated order
+        required: false
+        default: github,gemini,custom
+        type: string
+
+permissions:
+  contents: read
+  models: read
+
+concurrency:
+  group: free-multi-llm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      ROUTER_PROMPT: ${{ inputs.prompt }}
+      PROVIDER_ORDER: ${{ inputs.provider_order }}
+      GITHUB_MODELS_TOKEN: ${{ github.token }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.5-flash' }}
+      GITHUB_MODEL: ${{ vars.GITHUB_MODEL || 'openai/gpt-4.1' }}
+      CUSTOM_LLM_BASE_URL: ${{ secrets.CUSTOM_LLM_BASE_URL }}
+      CUSTOM_LLM_API_KEY: ${{ secrets.CUSTOM_LLM_API_KEY }}
+      CUSTOM_LLM_MODEL: ${{ vars.CUSTOM_LLM_MODEL || 'default' }}
+      ALLOW_PAID_PROVIDERS: 'false'
+      MAX_OUTPUT_TOKENS: '1600'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run fallback router
+        id: route
+        shell: bash
+        run: |
+          set +e
+          python3 cloud_runner/router.py \
+            --prompt "$ROUTER_PROMPT" \
+            --providers "$PROVIDER_ORDER" \
+            --output cloud_runner_result.json
+          status=$?
+          cat cloud_runner_result.json
+          {
+            echo '## Multi-LLM result'
+            echo
+            echo '```json'
+            cat cloud_runner_result.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
