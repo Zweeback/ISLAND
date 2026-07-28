@@ -135,6 +135,27 @@ projects:
       write: allowed
       deploy: false
 
+  - id: gamecloud
+    path: APPS/gamecloud
+    status: experimental
+    type: python-api
+    description: >
+      Multi-LLM cloud game development workspace. Unified LLM router
+      (OpenAI, Anthropic, Gemini, Ollama), FastAPI game session API,
+      and GitHub Codespaces devcontainer.
+    language: [python]
+    framework: [fastapi, pydantic]
+    deployable: false
+    install_command: pip install -r requirements.txt
+    test_command: PYTHONPATH=. pytest tests/
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+      note: "No secrets in repo. Use .env (git-ignored) for API keys."
+
   # ── Placeholder – code not yet imported ─────────────────────────────────
 
   - id: alice
