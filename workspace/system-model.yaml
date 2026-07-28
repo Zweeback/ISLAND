@@ -1,0 +1,147 @@
+version: 2
+kind: island.system-model
+metadata:
+  name: ISLAND
+  purpose: Consolidated multi-project development workspace with governed agent execution
+  authority: workspace/system-model.yaml
+
+principles:
+  - id: single-source-of-truth
+    statement: Architecture facts are declared once and projected into documentation, policies, and automation.
+  - id: deny-by-default
+    statement: Agents and tools receive only explicitly declared capabilities and write scopes.
+  - id: separation-of-concerns
+    statement: Domain code, platform services, governance, data, and archives remain distinct.
+  - id: deterministic-routing
+    statement: Work is routed by declared capability, scope, risk, and required approvals.
+  - id: observable-execution
+    statement: Material agent actions produce traceable inputs, decisions, outputs, and validation evidence.
+
+layers:
+  - id: governance
+    paths: [AGENTS, .github, docs/architecture, workspace]
+    responsibilities: [policy, routing, schemas, approvals, validation]
+  - id: platform
+    paths: [08_TOOLS_SCRIPTS, Input/projects/anti-gravity-bridge]
+    responsibilities: [orchestration, connectors, health-checks, shared tooling]
+  - id: domains
+    paths: [APPS, 07_3D_ASSET_LIBRARY]
+    responsibilities: [product capabilities, domain logic, user-facing applications]
+  - id: knowledge
+    paths: [05_RAG_SOURCE_OF_TRUTH, 03_MANIFESTE_INVENTAR]
+    responsibilities: [catalogs, manifests, retrieval sources, task state]
+  - id: integration
+    paths: [06_GATEWAY_LIVEFEED]
+    responsibilities: [external feeds, gateways, live interfaces]
+  - id: archive
+    paths: [09_ARCHIV_NICHT_ANFASSEN]
+    responsibilities: [immutable reference material]
+
+components:
+  - id: project-catalog
+    layer: governance
+    path: workspace/projects.yaml
+    type: registry
+    owns: [project identity, lifecycle status, canonical path, test commands]
+  - id: agent-policy
+    layer: governance
+    path: AGENTS.md
+    type: policy-projection
+    derives_from: [workspace/system-model.yaml]
+  - id: copilot-policy
+    layer: governance
+    path: .github/copilot-instructions.md
+    type: policy-projection
+    derives_from: [workspace/system-model.yaml]
+  - id: orchestration-bridge
+    layer: platform
+    path: Input/projects/anti-gravity-bridge
+    type: service
+    owns: [agent orchestration, execution adapters]
+  - id: blast-agent
+    layer: platform
+    path: 08_TOOLS_SCRIPTS/blast_agent
+    type: tool-suite
+    owns: [scrapers, operational tools]
+  - id: task-queue
+    layer: knowledge
+    path: 03_MANIFESTE_INVENTAR/task_queue.jsonl
+    type: state-store
+    owns: [work requests, task lifecycle]
+
+actors:
+  - id: human-owner
+    type: human
+    trust: owner
+    capabilities: [approve, override, merge, deploy, manage-secrets]
+  - id: github-copilot
+    type: agent
+    trust: bounded
+    capabilities: [read-repository, propose-code, write-approved-scopes, run-tests]
+  - id: codex
+    type: agent
+    trust: bounded
+    capabilities: [read-repository, propose-code, validate-schemas, update-approved-scopes]
+  - id: antigravity
+    type: agent
+    trust: local-privileged
+    capabilities: [local-scan-approved-paths, run-scrapers, orchestrate-tools]
+  - id: jules
+    type: agent
+    trust: bounded
+    capabilities: [repository-maintenance, pr-coordination, manifest-updates]
+
+policies:
+  write_scopes:
+    allowed: [APPS, Input/projects, 08_TOOLS_SCRIPTS, 07_3D_ASSET_LIBRARY, AGENTS, workspace, docs, .github/workflows]
+    approval_required: [03_MANIFESTE_INVENTAR, 04_REPORTS_AUDITS, 06_GATEWAY_LIVEFEED]
+    forbidden: [09_ARCHIV_NICHT_ANFASSEN, '**/.env', '**/.env.*.local']
+  approval_gates:
+    - id: security-sensitive-change
+      triggers: [authentication, authorization, command-execution, network-fetch, secrets, workflow-permissions]
+      approver: human-owner
+    - id: external-side-effect
+      triggers: [paid-deployment, destructive-operation, repository-deletion, history-rewrite]
+      approver: human-owner
+    - id: large-artifact
+      triggers: [binary-over-50mb, dataset-import]
+      approver: human-owner
+  invariants:
+    - id: no-secret-material
+      rule: No credential value may exist in tracked files or generated logs.
+    - id: archive-immutable
+      rule: Archive paths are read-only for all non-human actors.
+    - id: catalog-before-action
+      rule: Every project action must resolve a catalog entry before execution.
+    - id: tests-for-code
+      rule: New executable code requires automated validation in its project scope.
+    - id: evidence-required
+      rule: Completion requires test, lint, schema, or explicit manual validation evidence.
+
+routing:
+  dimensions: [project, capability, risk, data-sensitivity, side-effect]
+  rules:
+    - when: {risk: high}
+      route_to: human-owner
+    - when: {capability: repository-maintenance}
+      route_to: jules
+    - when: {capability: schema-validation}
+      route_to: codex
+    - when: {capability: code-generation}
+      route_to: github-copilot
+    - when: {capability: local-tool-execution}
+      route_to: antigravity
+
+execution_contract:
+  required_inputs: [task-id, target-project, objective, allowed-scopes, acceptance-criteria]
+  required_outputs: [change-summary, files-changed, validation-evidence, unresolved-risks]
+  states: [proposed, approved, executing, validating, blocked, completed, failed]
+  terminal_states: [blocked, completed, failed]
+
+validation:
+  schema: workspace/system-model.schema.json
+  workflow: .github/workflows/architecture-validate.yml
+  projections:
+    - AGENTS.md
+    - .github/copilot-instructions.md
+    - docs/architecture/ARCHITECTURE.md
