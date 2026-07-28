@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Zweeback/ISLAND/workspace/system-model.schema.json",
+  "title": "ISLAND System Model",
+  "type": "object",
+  "required": ["version", "kind", "metadata", "principles", "layers", "components", "actors", "policies", "routing", "execution_contract", "validation"],
+  "properties": {
+    "version": {"type": "integer", "minimum": 2},
+    "kind": {"const": "island.system-model"},
+    "metadata": {
+      "type": "object",
+      "required": ["name", "purpose", "authority"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "purpose": {"type": "string", "minLength": 1},
+        "authority": {"const": "workspace/system-model.yaml"}
+      },
+      "additionalProperties": false
+    },
+    "principles": {"type": "array", "minItems": 1, "items": {"$ref": "#/definitions/idStatement"}},
+    "layers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "paths", "responsibilities"],
+        "properties": {
+          "id": {"type": "string"},
+          "paths": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+          "responsibilities": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "components": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "layer", "path", "type"], "properties": {"id": {"type": "string"}, "layer": {"type": "string"}, "path": {"type": "string"}, "type": {"type": "string"}, "owns": {"type": "array", "items": {"type": "string"}}, "derives_from": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false}},
+    "actors": {"type": "array", "minItems": 1, "items": {"type": "object", "required": ["id", "type", "trust", "capabilities"], "properties": {"id": {"type": "string"}, "type": {"enum": ["human", "agent", "service"]}, "trust": {"type": "string"}, "capabilities": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false}},
+    "policies": {"type": "object", "required": ["write_scopes", "approval_gates", "invariants"]},
+    "routing": {"type": "object", "required": ["dimensions", "rules"]},
+    "execution_contract": {"type": "object", "required": ["required_inputs", "required_outputs", "states", "terminal_states"]},
+    "validation": {"type": "object", "required": ["schema", "workflow", "projections"]}
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "idStatement": {
+      "type": "object",
+      "required": ["id", "statement"],
+      "properties": {"id": {"type": "string", "minLength": 1}, "statement": {"type": "string", "minLength": 1}},
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,89 @@
+name: Architecture Validate
+
+on:
+  pull_request:
+    paths:
+      - "workspace/system-model.yaml"
+      - "workspace/system-model.schema.json"
+      - "docs/architecture/**"
+      - "AGENTS.md"
+      - ".github/copilot-instructions.md"
+      - ".github/workflows/architecture-validate.yml"
+  push:
+    branches: [main]
+    paths:
+      - "workspace/system-model.yaml"
+      - "workspace/system-model.schema.json"
+      - "docs/architecture/**"
+      - "AGENTS.md"
+      - ".github/copilot-instructions.md"
+      - ".github/workflows/architecture-validate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install validators
+        run: pip install pyyaml jsonschema
+      - name: Validate model and semantic references
+        run: |
+          python - <<'PY'
+          import json
+          import pathlib
+          import sys
+          import yaml
+          from jsonschema import Draft7Validator
+
+          root = pathlib.Path('.')
+          model_path = root / 'workspace/system-model.yaml'
+          schema_path = root / 'workspace/system-model.schema.json'
+          model = yaml.safe_load(model_path.read_text())
+          schema = json.loads(schema_path.read_text())
+
+          errors = sorted(Draft7Validator(schema).iter_errors(model), key=lambda e: list(e.path))
+          if errors:
+              for error in errors:
+                  print(f"schema: {'/'.join(map(str, error.path))}: {error.message}")
+              sys.exit(1)
+
+          def unique(items, label):
+              ids = [item['id'] for item in items]
+              duplicates = sorted({value for value in ids if ids.count(value) > 1})
+              if duplicates:
+                  raise SystemExit(f"duplicate {label} IDs: {duplicates}")
+              return set(ids)
+
+          layer_ids = unique(model['layers'], 'layer')
+          unique(model['components'], 'component')
+          actor_ids = unique(model['actors'], 'actor')
+
+          for component in model['components']:
+              if component['layer'] not in layer_ids:
+                  raise SystemExit(f"component {component['id']} references unknown layer {component['layer']}")
+              if not (root / component['path']).exists():
+                  raise SystemExit(f"component {component['id']} path does not exist: {component['path']}")
+
+          for rule in model['routing']['rules']:
+              target = rule['route_to']
+              if target not in actor_ids:
+                  raise SystemExit(f"routing rule references unknown actor: {target}")
+
+          required = set(model['execution_contract']['required_inputs'])
+          expected = {'task-id', 'target-project', 'objective', 'allowed-scopes', 'acceptance-criteria'}
+          if not expected.issubset(required):
+              raise SystemExit(f"execution contract missing inputs: {sorted(expected - required)}")
+
+          for projection in model['validation']['projections']:
+              if not (root / projection).exists():
+                  raise SystemExit(f"declared projection does not exist: {projection}")
+
+          print('Architecture model is schema-valid and semantically consistent.')
+          PY
