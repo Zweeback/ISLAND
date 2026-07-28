@@ -47,17 +47,14 @@ jobs:
           python - <<'EOF'
           import yaml, pathlib, sys
 
-          YAML_FILES = [
-              "workspace/projects.yaml",
-              ".github/copilot-instructions.md",   # not YAML, skip silently
-          ]
           YAML_GLOB = [
+              "workspace/*.yaml",
               "03_MANIFESTE_INVENTAR/*.yaml",
               ".github/workflows/*.yml",
           ]
 
           errors = []
-          to_check = ["workspace/projects.yaml"]
+          to_check = []
           for pat in YAML_GLOB:
               to_check.extend(str(p) for p in pathlib.Path(".").glob(pat))
 

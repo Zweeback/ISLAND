@@ -1,1 +1,53 @@
-{"_comment":["ISLAND Workspace MCP Server – Configuration Template","","This file is a TEMPLATE only. It is NOT automatically picked up by","GitHub Copilot Cloud Agent.","","To activate:","  1. Deploy the MCP server (see AGENTS/connector/README.md).","  2. Add secrets in: GitHub → Repository Settings → Environments → copilot","     Secret names MUST start with COPILOT_MCP_ (GitHub requirement).","  3. Paste the adapted JSON into:","     GitHub → Repository Settings → Copilot → MCP servers","","For VS Code / local Codespaces: copy to .vscode/mcp.json (git-ignored).","","Security: all listed tools are READ-ONLY. Do not add write tools","without documenting them in AGENTS/connector/policies/write-boundaries.yaml."],"mcpServers":{"island-workspace":{"_comment":"Replace <YOUR_SERVER_URL> with the actual deployed endpoint.","url":"<YOUR_SERVER_URL>/mcp","headers":{"Authorization":"******"},"tools":{"allow":["get_project","list_projects","get_task","search_manifest","health_check"],"deny":["*_write","*_delete","*_create","*_update"]}}},"_secrets_required":{"COPILOT_MCP_ISLAND_TOKEN":{"description":"****** for the ISLAND workspace MCP server.","location":"GitHub → Repository Settings → Environments → copilot → Secrets","note":"Prefix COPILOT_MCP_ is required by GitHub for Copilot MCP secrets."}},"_status":"template – not yet deployed","_blocker":"P0 security PRs #22, #53, #55 must be resolved before any MCP server is deployed."}
+{
+  "_comment": [
+    "ISLAND Workspace MCP Server - Configuration Template",
+    "",
+    "This file is a TEMPLATE only. It is NOT automatically picked up by",
+    "GitHub Copilot Cloud Agent.",
+    "",
+    "To activate:",
+    "  1. Deploy the MCP server (see AGENTS/connector/README.md).",
+    "  2. Add secrets in: GitHub -> Repository Settings -> Environments -> copilot",
+    "     Secret names MUST start with COPILOT_MCP_ (GitHub requirement).",
+    "  3. Paste the adapted JSON into:",
+    "     GitHub -> Repository Settings -> Copilot -> MCP servers",
+    "",
+    "For VS Code / local Codespaces: copy to .vscode/mcp.json (git-ignored).",
+    "",
+    "Security: all listed tools are READ-ONLY. Do not add write tools",
+    "without documenting them in AGENTS/connector/policies/write-boundaries.yaml."
+  ],
+  "mcpServers": {
+    "island-workspace": {
+      "_comment": "Replace <YOUR_SERVER_URL> with the actual deployed endpoint.",
+      "url": "<YOUR_SERVER_URL>/mcp",
+      "headers": {
+        "Authorization": "******"
+      },
+      "tools": {
+        "allow": [
+          "get_project",
+          "list_projects",
+          "get_task",
+          "search_manifest",
+          "health_check"
+        ],
+        "deny": [
+          "*_write",
+          "*_delete",
+          "*_create",
+          "*_update"
+        ]
+      }
+    }
+  },
+  "_secrets_required": {
+    "COPILOT_MCP_ISLAND_TOKEN": {
+      "description": "****** for the ISLAND workspace MCP server.",
+      "location": "GitHub -> Repository Settings -> Environments -> copilot -> Secrets",
+      "note": "Prefix COPILOT_MCP_ is required by GitHub for Copilot MCP secrets."
+    }
+  },
+  "_status": "template - not yet deployed",
+  "_blocker": "P0 security PRs #22, #53, #55 must be resolved before any MCP server is deployed."
+}
