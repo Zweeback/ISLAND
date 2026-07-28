@@ -1,0 +1,49 @@
+{
+  "name": "GameCloud Multi-LLM Dev",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    },
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "pip install -r /workspaces/ISLAND/APPS/gamecloud/requirements.txt && echo '✅ GameCloud ready'",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylint",
+        "ms-python.black-formatter",
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck",
+        "davidanson.vscode-markdownlint",
+        "GitHub.copilot",
+        "GitHub.copilot-chat",
+        "ms-toolsai.jupyter",
+        "humao.rest-client",
+        "rangav.vscode-thunder-client"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.black-formatter"
+        }
+      }
+    }
+  },
+  "remoteEnv": {
+    "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}",
+    "ANTHROPIC_API_KEY": "${localEnv:ANTHROPIC_API_KEY}",
+    "GOOGLE_API_KEY": "${localEnv:GOOGLE_API_KEY}",
+    "OLLAMA_HOST": "${localEnv:OLLAMA_HOST:http://localhost:11434}",
+    "GAMECLOUD_ENV": "development"
+  },
+  "forwardPorts": [8000, 11434, 3000],
+  "portsAttributes": {
+    "8000": { "label": "GameCloud API", "onAutoForward": "notify" },
+    "11434": { "label": "Ollama (local LLM)", "onAutoForward": "silent" },
+    "3000": { "label": "Frontend Dev Server", "onAutoForward": "notify" }
+  }
+}
