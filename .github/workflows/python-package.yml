@@ -1,18 +1,87 @@
-# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
+# Python CI – runs tests and lint for all active Python projects.
+# Path filters ensure this only triggers when Python code actually changes.
 
 name: Python package
 
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "08_TOOLS_SCRIPTS/**"
+      - "Input/projects/anti-gravity-bridge/**"
+      - "07_3D_ASSET_LIBRARY/**"
+      - "requirements.txt"
+      - ".github/workflows/python-package.yml"
   pull_request:
     branches: [ "main" ]
+    paths:
+      - "08_TOOLS_SCRIPTS/**"
+      - "Input/projects/anti-gravity-bridge/**"
+      - "07_3D_ASSET_LIBRARY/**"
+      - "requirements.txt"
+      - ".github/workflows/python-package.yml"
 
 jobs:
-  build:
-
+  # ── Basic secret scan before anything else ────────────────────────────────
+  # NOTE: This is an additional in-repo check. GitHub Secret Scanning and
+  # Push Protection (repository Settings → Security) should also be enabled.
+  # This step does not scan Git history – it only scans the current checkout.
+  secret-scan:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan for credential patterns
+        run: |
+          python - <<'EOF'
+          import re, pathlib, sys
+
+          PATTERNS = [
+              # Generic key=value secrets
+              (r'(?i)(password|passwd|api_key|apikey|secret|token)\s*=\s*["\'][^"\'<>@\s]{8,}["\']', "generic secret"),
+              # AWS access key ID
+              (r'AKIA[0-9A-Z]{16}', "AWS access key"),
+              # GitHub personal token
+              (r'ghp_[a-zA-Z0-9]{36}', "GitHub PAT"),
+              # Generic ****** value (long)
+              (r'Bearer\s+[A-Za-z0-9+/=]{40,}', "******"),
+          ]
+
+          SKIP_DIRS  = {".git", "node_modules", "__pycache__", ".venv", "venv"}
+          SKIP_EXTS  = {".pyc", ".lock", ".gitkeep", ".glb"}
+          # Template/example files are allowed to document key names
+          SKIP_FILES = {".env.template", "ORIGINAL_REPO.md"}
+
+          findings = []
+          for path in sorted(pathlib.Path(".").rglob("*")):
+              if any(d in path.parts for d in SKIP_DIRS):
+                  continue
+              if path.suffix in SKIP_EXTS or path.name in SKIP_FILES:
+                  continue
+              if not path.is_file():
+                  continue
+              try:
+                  text = path.read_text(errors="ignore")
+              except Exception:
+                  continue
+              for pattern, label in PATTERNS:
+                  for m in re.finditer(pattern, text):
+                      snippet = m.group()[:60].replace("\n", "")
+                      findings.append(f"  {path}: [{label}] {snippet}")
+
+          if findings:
+              print("POTENTIAL SECRETS FOUND – review before merging:")
+              for f in findings:
+                  print(f)
+              sys.exit(1)
+          print("Secret scan: no patterns matched.")
+          EOF
+
+  # ── Lint and test across Python versions ─────────────────────────────────
+  build:
+    runs-on: ubuntu-latest
+    needs: secret-scan
     strategy:
       fail-fast: false
       matrix:
@@ -38,3 +107,4 @@ jobs:
     - name: Test with pytest
       run: |
         cd 08_TOOLS_SCRIPTS/blast_agent && PYTHONPATH=. pytest && cd ../.. && cd Input/projects/anti-gravity-bridge && PYTHONPATH=. pytest && cd ../../.. && cd 07_3D_ASSET_LIBRARY && PYTHONPATH=. pytest && cd .. && cd 08_TOOLS_SCRIPTS && PYTHONPATH=. pytest -k "not blast_agent" || [ $? -eq 5 ]
+

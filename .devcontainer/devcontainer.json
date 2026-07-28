@@ -1,0 +1,28 @@
+{
+  "name": "ISLAND Workspace",
+  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "postCreateCommand": "pip install -r requirements.txt && pip install pytest flake8 pyyaml jsonschema && cd Input/projects/anti-gravity-bridge && pip install -r orchestrator/requirements.txt && cd /workspaces/ISLAND",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.pylint",
+        "redhat.vscode-yaml",
+        "timonwong.shellcheck",
+        "davidanson.vscode-markdownlint"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "remoteEnv": {
+    "PYTHONPATH": "${containerWorkspaceFolder}/08_TOOLS_SCRIPTS/blast_agent"
+  }
+}

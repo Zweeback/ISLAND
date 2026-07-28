@@ -1,0 +1,63 @@
+name: "Copilot Setup Steps"
+
+# Runs automatically when this file changes (for validation) and can be
+# triggered manually from the Actions tab.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  # Job name MUST be "copilot-setup-steps" – GitHub Copilot Cloud Agent picks
+  # it up by this exact name.
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Python runtime ─────────────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install root Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest flake8 pyyaml jsonschema
+
+      - name: Install anti-gravity-bridge dependencies
+        run: |
+          pip install -r Input/projects/anti-gravity-bridge/orchestrator/requirements.txt
+
+      # ── Node.js runtime (island_cockpit) ───────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # ── Workspace validation smoke-check ───────────────────────────────────
+      - name: Verify workspace catalog
+        run: |
+          python -c "
+          import yaml, json, pathlib, sys
+          catalog = yaml.safe_load(pathlib.Path('workspace/projects.yaml').read_text())
+          ids = [p['id'] for p in catalog.get('projects', [])]
+          dupes = [x for x in ids if ids.count(x) > 1]
+          if dupes:
+              print(f'ERROR: duplicate project IDs: {dupes}', file=sys.stderr)
+              sys.exit(1)
+          print(f'Workspace catalog OK: {len(ids)} projects registered.')
+          "
