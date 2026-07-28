@@ -1,0 +1,127 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/Zweeback/ISLAND/workspace/projects.schema.json",
+  "title": "ISLAND Workspace Project Catalog",
+  "description": "Schema for workspace/projects.yaml – validates all project entries.",
+  "type": "object",
+  "required": ["schema_version", "projects"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Catalog schema version, e.g. 'workspace.v1'"
+    },
+    "last_updated": {
+      "type": "string",
+      "description": "ISO 8601 date of last manual update"
+    },
+    "projects": {
+      "type": "array",
+      "description": "List of all known projects in the workspace",
+      "items": { "$ref": "#/definitions/Project" },
+      "minItems": 1
+    }
+  },
+  "definitions": {
+    "Project": {
+      "type": "object",
+      "required": ["id", "path", "status", "type", "deployable", "agent_permissions"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier, kebab-case",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path from repository root"
+        },
+        "status": {
+          "type": "string",
+          "description": "Project lifecycle status",
+          "enum": [
+            "canonical",
+            "active",
+            "experimental",
+            "placeholder",
+            "data-only",
+            "docs-only",
+            "archived",
+            "reference-only",
+            "unknown"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "description": "Project type classification",
+          "enum": [
+            "python-tool",
+            "python-api",
+            "web-dashboard",
+            "agent",
+            "game-project",
+            "3d-asset",
+            "data-only",
+            "data",
+            "pipeline",
+            "archive",
+            "reference-only",
+            "docs",
+            "unknown"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "language": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "framework": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "deployable": {
+          "type": "boolean",
+          "description": "Whether this project can currently be deployed"
+        },
+        "install_command": {
+          "type": ["string", "null"],
+          "description": "Command to install dependencies"
+        },
+        "test_command": {
+          "type": ["string", "null"],
+          "description": "Command to run tests"
+        },
+        "build_command": {
+          "type": ["string", "null"],
+          "description": "Command to produce a build artifact"
+        },
+        "source_repo": {
+          "type": ["string", "null"],
+          "description": "Original GitHub repository (owner/repo format)"
+        },
+        "source_status": {
+          "type": ["string", "null"],
+          "description": "Import / availability status of the source repository"
+        },
+        "agent_permissions": {
+          "type": "object",
+          "required": ["read", "write", "deploy"],
+          "additionalProperties": false,
+          "properties": {
+            "read": { "type": "boolean" },
+            "write": {
+              "oneOf": [
+                { "type": "boolean" },
+                { "type": "string", "enum": ["allowed", "restricted"] }
+              ]
+            },
+            "deploy": { "type": "boolean" },
+            "note": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

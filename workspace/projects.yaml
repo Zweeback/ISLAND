@@ -1,0 +1,365 @@
+# ISLAND Workspace Project Catalog
+# Single source of truth for all known projects.
+# Validated against workspace/projects.schema.json in CI.
+#
+# Status values:
+#   canonical     – primary, active, code present, tests run
+#   active        – running / usable, may not be primary
+#   experimental  – in development, unstable
+#   placeholder   – directory created, source not yet imported
+#   data-only     – no runnable code, only data/assets
+#   docs-only     – documentation without runnable code
+#   archived      – reference copy, do not modify
+#   reference-only – external reference, read-only
+#   unknown       – not yet classified
+
+schema_version: "workspace.v1"
+last_updated: "2026-07-28"
+
+projects:
+
+  # ── Active / Canonical ──────────────────────────────────────────────────
+
+  - id: anti-gravity-bridge
+    path: Input/projects/anti-gravity-bridge
+    status: canonical
+    type: python-api
+    description: >
+      FastAPI orchestrator connecting Unity Editor, headless Blender,
+      and Meshroom photogrammetry. Most complete codebase in the repo.
+    language: [python, csharp]
+    framework: [fastapi, pydantic]
+    deployable: false
+    install_command: pip install -r orchestrator/requirements.txt
+    test_command: PYTHONPATH=. pytest
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+      note: "P0 security PRs #53/#55 block any deployment"
+
+  - id: blast-agent
+    path: 08_TOOLS_SCRIPTS/blast_agent
+    status: canonical
+    type: python-tool
+    description: >
+      Scraper tool suite for OpenData Dortmund, Digibib, Scribd, Statista,
+      LinkedIn. Primary automation toolkit.
+    language: [python]
+    framework: []
+    deployable: false
+    install_command: pip install -r ../../requirements.txt
+    test_command: PYTHONPATH=. pytest
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+      note: "P0 security PRs #53/#55 affect scrapers in this module"
+
+  - id: island-cockpit
+    path: 08_TOOLS_SCRIPTS/island_cockpit
+    status: active
+    type: web-dashboard
+    description: >
+      Static task-queue dashboard. Deployed to GitHub Pages via
+      .github/workflows/island-cockpit-pages.yml.
+    language: [html, javascript, css]
+    framework: []
+    deployable: true
+    install_command: null
+    test_command: null
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+      note: "Deployment is automated via island-cockpit-pages.yml on push to main"
+
+  - id: island-scanner-dashboard
+    path: 08_TOOLS_SCRIPTS/island_scanner_dashboard
+    status: experimental
+    type: python-tool
+    description: >
+      Local file-system scanner with a Python backend and HTML/JS frontend.
+      Runs via run_dashboard.ps1 on Windows.
+    language: [python, html, javascript, css]
+    framework: []
+    deployable: false
+    install_command: pip install -r ../../requirements.txt
+    test_command: null
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  - id: alice-3d-library
+    path: 07_3D_ASSET_LIBRARY
+    status: canonical
+    type: data-only
+    description: >
+      Alice 3D character asset (alice.glb) plus a Python viewer wrapper
+      and tests. The GLB is the canonical runtime asset for ALICE.
+    language: [python]
+    framework: []
+    deployable: false
+    install_command: pip install -r ../requirements.txt
+    test_command: PYTHONPATH=. pytest
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  - id: island-gate
+    path: 08_TOOLS_SCRIPTS/island_gate.py
+    status: active
+    type: python-tool
+    description: Single-file gateway module with tests in 08_TOOLS_SCRIPTS/tests/.
+    language: [python]
+    framework: []
+    deployable: false
+    install_command: null
+    test_command: PYTHONPATH=. pytest tests/ -k "not blast_agent"
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  # ── Placeholder – code not yet imported ─────────────────────────────────
+
+  - id: alice
+    path: APPS/alice
+    status: placeholder
+    type: unknown
+    description: >
+      Placeholder for ALICE persona and 3D character app code.
+      Source repos (Zweeback/alice, Zweeback/3-d-persona) reported 0 KB
+      – possibly empty or private.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/alice
+    source_status: unavailable
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+      note: "No code present. Do not create Dockerfile or cloud config yet."
+
+  - id: feednoodle
+    path: APPS/feednoodle
+    status: placeholder
+    type: unknown
+    description: >
+      Placeholder for FeedNoodle multi-source feed browser.
+      Source (Zweeback/feednoodle) is 1 KB – minimal content.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/feednoodle
+    source_status: minimal
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  - id: grimm
+    path: APPS/grimm
+    status: placeholder
+    type: unknown
+    description: >
+      Placeholder for GRIMM semantic knowledge graph builder.
+      Source (Zweeback/GRIMM) is private and reported 0 KB.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/GRIMM
+    source_status: unavailable
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  - id: gta-dortmund
+    path: APPS/gta-dortmund
+    status: placeholder
+    type: unknown
+    description: >
+      Placeholder for GTA Dortmund urban simulation.
+      Source (Zweeback/GTA) is private, 101 KB – content exists but not
+      yet imported. PROJECTS/gta-dortmund contains only README documentation.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/GTA
+    source_status: pending_import
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  - id: promptdex
+    path: APPS/promptdex
+    status: placeholder
+    type: unknown
+    description: >
+      Placeholder for PromptDex prompt library tool.
+      Source (Zweeback/promptdex) is 1 KB – minimal content.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/promptdex
+    source_status: minimal
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  # ── Docs-only / Duplicate ────────────────────────────────────────────────
+
+  - id: gta-dortmund-docs
+    path: PROJECTS/gta-dortmund
+    status: docs-only
+    type: docs
+    description: >
+      Detailed README-only documentation for GTA Dortmund. No code.
+      Duplicate home alongside APPS/gta-dortmund – should be consolidated
+      into APPS/gta-dortmund once code is imported.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: null
+    source_status: docs_only
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  # ── Data / Infrastructure ────────────────────────────────────────────────
+
+  - id: rag-source-of-truth
+    path: 05_RAG_SOURCE_OF_TRUTH
+    status: placeholder
+    type: data-only
+    description: >
+      Future home for RAG engine code (Zweeback/rag, 4.4 MB) and indexes
+      (Zweeback/RAG_INDEX, 250 KB). Neither has been imported yet due to
+      large file concerns. Only ORIGINAL_REPO.md markers are present.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/rag
+    source_status: pending_import
+    agent_permissions:
+      read: true
+      write: false
+      deploy: false
+      note: "Large binary content – import requires explicit approval"
+
+  - id: ingest-inbox
+    path: 01_INGEST_INBOX
+    status: active
+    type: pipeline
+    description: Pipeline entry point for incoming documents and code projects.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: null
+    source_status: present
+    agent_permissions:
+      read: true
+      write: allowed
+      deploy: false
+
+  # ── Archived / Reference ─────────────────────────────────────────────────
+
+  - id: archive-benjamin-carl
+    path: 09_ARCHIV_NICHT_ANFASSEN/imported-repos/Benjamin-Carl-Zwieback-
+    status: archived
+    type: reference-only
+    description: >
+      Reference copy of Zweeback/Benjamin-Carl-Zwieback- (public, ~135 KB).
+      Do not modify.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/Benjamin-Carl-Zwieback-
+    source_status: archived_reference
+    agent_permissions:
+      read: true
+      write: false
+      deploy: false
+
+  - id: archive-dna
+    path: 09_ARCHIV_NICHT_ANFASSEN/imported-repos/dna
+    status: archived
+    type: reference-only
+    description: >
+      Reference copy of Zweeback/dna (public, ~134 KB). Do not modify.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/dna
+    source_status: archived_reference
+    agent_permissions:
+      read: true
+      write: false
+      deploy: false
+
+  - id: archive-marchen
+    path: 09_ARCHIV_NICHT_ANFASSEN/imported-repos/M-rchen
+    status: archived
+    type: reference-only
+    description: >
+      Reference copy of Zweeback/M-rchen (private, ~4 KB). Do not modify.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/M-rchen
+    source_status: archived_reference
+    agent_permissions:
+      read: true
+      write: false
+      deploy: false
+
+  - id: archive-bentropie
+    path: 09_ARCHIV_NICHT_ANFASSEN/imported-repos/bentropie-main
+    status: archived
+    type: reference-only
+    description: >
+      Reference copy of Zweeback/bentropie-main (private, 0 KB). Empty.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/bentropie-main
+    source_status: archived_reference
+    agent_permissions:
+      read: true
+      write: false
+      deploy: false
+
+  - id: archive-workspace
+    path: 09_ARCHIV_NICHT_ANFASSEN/imported-repos/workspace
+    status: archived
+    type: reference-only
+    description: >
+      Reference copy of Zweeback/workspace (private, ~2 KB). Do not modify.
+    language: []
+    framework: []
+    deployable: false
+    source_repo: Zweeback/workspace
+    source_status: archived_reference
+    agent_permissions:
+      read: true
+      write: false
+      deploy: false

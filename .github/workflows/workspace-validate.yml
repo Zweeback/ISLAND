@@ -1,0 +1,257 @@
+name: Workspace Validate
+
+# Validates workspace/projects.yaml against its schema and checks that:
+# - all catalogued paths exist in the repository
+# - no duplicate project IDs are present
+# - only allowed status values are used
+# - template and config files do not contain real credentials
+# - JSON and YAML syntax in key manifests is valid
+#
+# Runs on every push/PR and can be triggered manually.
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "workspace/**"
+      - "03_MANIFESTE_INVENTAR/**"
+      - ".github/workflows/workspace-validate.yml"
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "workspace/**"
+      - "03_MANIFESTE_INVENTAR/**"
+      - ".github/workflows/workspace-validate.yml"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install validation dependencies
+        run: pip install pyyaml jsonschema
+
+      # ── 1. YAML syntax check ─────────────────────────────────────────────
+      - name: Check YAML syntax
+        run: |
+          python - <<'EOF'
+          import yaml, pathlib, sys
+
+          YAML_FILES = [
+              "workspace/projects.yaml",
+              ".github/copilot-instructions.md",   # not YAML, skip silently
+          ]
+          YAML_GLOB = [
+              "03_MANIFESTE_INVENTAR/*.yaml",
+              ".github/workflows/*.yml",
+          ]
+
+          errors = []
+          to_check = ["workspace/projects.yaml"]
+          for pat in YAML_GLOB:
+              to_check.extend(str(p) for p in pathlib.Path(".").glob(pat))
+
+          for fpath in to_check:
+              p = pathlib.Path(fpath)
+              if not p.exists():
+                  continue
+              try:
+                  yaml.safe_load(p.read_text())
+              except yaml.YAMLError as e:
+                  errors.append(f"{fpath}: {e}")
+
+          if errors:
+              print("YAML syntax errors:")
+              for e in errors:
+                  print(f"  {e}")
+              sys.exit(1)
+          print("YAML syntax: OK")
+          EOF
+
+      # ── 2. JSON syntax check ──────────────────────────────────────────────
+      - name: Check JSON syntax
+        run: |
+          python - <<'EOF'
+          import json, pathlib, sys
+
+          JSON_GLOBS = [
+              "03_MANIFESTE_INVENTAR/*.jsonl",
+              "workspace/*.json",
+              "AGENTS/**/*.json",
+              "Input/projects/anti-gravity-bridge/schemas/*.json",
+              "Input/projects/anti-gravity-bridge/capabilities/*.json",
+          ]
+
+          errors = []
+          for pat in JSON_GLOBS:
+              for p in pathlib.Path(".").glob(pat):
+                  if not p.is_file():
+                      continue
+                  try:
+                      if p.suffix == ".jsonl":
+                          for i, line in enumerate(p.read_text().splitlines(), 1):
+                              line = line.strip()
+                              if line:
+                                  json.loads(line)
+                      else:
+                          json.loads(p.read_text())
+                  except json.JSONDecodeError as e:
+                      errors.append(f"{p}: {e}")
+
+          if errors:
+              print("JSON syntax errors:")
+              for e in errors:
+                  print(f"  {e}")
+              sys.exit(1)
+          print("JSON syntax: OK")
+          EOF
+
+      # ── 3. Schema validation ──────────────────────────────────────────────
+      - name: Validate projects.yaml against schema
+        run: |
+          python - <<'EOF'
+          import yaml, json, pathlib, sys
+          import jsonschema
+
+          catalog_path = pathlib.Path("workspace/projects.yaml")
+          schema_path  = pathlib.Path("workspace/projects.schema.json")
+
+          if not catalog_path.exists():
+              print("ERROR: workspace/projects.yaml not found", file=sys.stderr)
+              sys.exit(1)
+          if not schema_path.exists():
+              print("ERROR: workspace/projects.schema.json not found", file=sys.stderr)
+              sys.exit(1)
+
+          catalog = yaml.safe_load(catalog_path.read_text())
+          schema  = json.loads(schema_path.read_text())
+
+          try:
+              jsonschema.validate(instance=catalog, schema=schema)
+          except jsonschema.ValidationError as e:
+              print(f"Schema validation failed: {e.message}", file=sys.stderr)
+              print(f"  Path: {list(e.absolute_path)}", file=sys.stderr)
+              sys.exit(1)
+
+          print(f"Schema validation: OK ({len(catalog['projects'])} projects)")
+          EOF
+
+      # ── 4. Duplicate ID check ─────────────────────────────────────────────
+      - name: Check for duplicate project IDs
+        run: |
+          python - <<'EOF'
+          import yaml, pathlib, sys, collections
+
+          catalog = yaml.safe_load(pathlib.Path("workspace/projects.yaml").read_text())
+          ids = [p["id"] for p in catalog.get("projects", [])]
+          dupes = [id_ for id_, count in collections.Counter(ids).items() if count > 1]
+
+          if dupes:
+              print(f"ERROR: duplicate project IDs: {dupes}", file=sys.stderr)
+              sys.exit(1)
+          print(f"Duplicate ID check: OK ({len(ids)} unique IDs)")
+          EOF
+
+      # ── 5. Path existence check ───────────────────────────────────────────
+      - name: Verify catalogued paths exist
+        run: |
+          python - <<'EOF'
+          import yaml, pathlib, sys
+
+          catalog = yaml.safe_load(pathlib.Path("workspace/projects.yaml").read_text())
+          missing = []
+
+          for p in catalog.get("projects", []):
+              path = pathlib.Path(p["path"])
+              if not path.exists():
+                  missing.append(f"  [{p['id']}] {p['path']} (status: {p['status']})")
+
+          if missing:
+              print("WARNING: the following catalogued paths do not exist in this checkout:")
+              for m in missing:
+                  print(m)
+              # Treat missing placeholder paths as warnings, not errors.
+              # Only fail if a canonical/active project path is missing.
+              BLOCKING = {"canonical", "active"}
+              blocking = [
+                  m for m, proj in zip(missing, [
+                      p for p in catalog["projects"]
+                      if not pathlib.Path(p["path"]).exists()
+                  ])
+                  if proj["status"] in BLOCKING
+              ]
+              if blocking:
+                  print("ERROR: canonical/active project paths are missing:")
+                  for b in blocking:
+                      print(b)
+                  sys.exit(1)
+              print("(All missing paths are placeholders or archives – OK)")
+          else:
+              print("Path existence check: OK")
+          EOF
+
+      # ── 6. Basic secret scan on template and config files ─────────────────
+      # NOTE: This supplements GitHub Secret Scanning (repository Settings →
+      # Security → Secret scanning). Enable Push Protection there as well.
+      # This step scans only the current checkout, not Git history.
+      - name: Secret scan (template and config files)
+        run: |
+          python - <<'EOF'
+          import re, pathlib, sys
+
+          # Patterns indicating real credential values (not placeholder text)
+          PATTERNS = [
+              (r'(?i)(password|passwd|api_key|apikey|secret|token)\s*=\s*["\'][^"\'<>\s]{12,}["\']', "generic secret"),
+              (r'AKIA[0-9A-Z]{16}', "AWS access key"),
+              (r'ghp_[a-zA-Z0-9]{36}', "GitHub PAT"),
+              (r'xai-[a-zA-Z0-9]{40,}', "xAI key"),
+              (r'sk-[a-zA-Z0-9]{40,}', "OpenAI key"),
+          ]
+
+          # Only scan files that should never contain real secrets
+          SCAN_TARGETS = [
+              "**/.env.template",
+              "**/*.template.json",
+              "**/*.example.json",
+              "**/copilot-instructions.md",
+              "**/AGENTS.md",
+              "**/README.md",
+              "workspace/*.yaml",
+              "workspace/*.json",
+          ]
+
+          SKIP_DIRS = {".git", "node_modules", "__pycache__", ".venv"}
+
+          findings = []
+          for pattern_glob in SCAN_TARGETS:
+              for path in pathlib.Path(".").glob(pattern_glob):
+                  if any(d in path.parts for d in SKIP_DIRS):
+                      continue
+                  if not path.is_file():
+                      continue
+                  try:
+                      text = path.read_text(errors="ignore")
+                  except Exception:
+                      continue
+                  for pat, label in PATTERNS:
+                      for m in re.finditer(pat, text):
+                          snippet = m.group()[:70].replace("\n", "")
+                          findings.append(f"  {path}: [{label}] {snippet}")
+
+          if findings:
+              print("POTENTIAL SECRETS IN DOCUMENTATION/TEMPLATE FILES:")
+              for f in findings:
+                  print(f)
+              sys.exit(1)
+          print("Secret scan (docs/templates): no patterns matched.")
+          EOF
