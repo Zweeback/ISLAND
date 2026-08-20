@@ -71,3 +71,27 @@ def test_security():
 
 if __name__ == "__main__":
     test_security()
+
+def test_opendata_scraper_ssrf():
+    blast_agent_path = Path(__file__).parent / "blast_agent.py"
+    res = subprocess.run(
+        [
+            sys.executable,
+            str(blast_agent_path),
+            "scrape",
+            "opendata_dortmund",
+            "get_records",
+            "../../foo"
+        ],
+        capture_output=True,
+        text=True,
+    )
+    # The vulnerability was that ../../foo would traverse the path.
+    # With urllib.parse.quote, it becomes ..%2F..%2Ffoo, which is safe.
+    # The API will just return a 404/Not Found for that dataset_id instead of traversing.
+    # Or at least, the scraper will handle it safely and likely output an error about the dataset not found,
+    # instead of successfully making a query to an unintended endpoint.
+
+    # Actually, we can check if the encoded URL is in the output because `query_opendata` prints the URL.
+    assert "..%2F..%2Ffoo" in res.stderr or "..%2F..%2Ffoo" in res.stdout, "Dataset ID was not properly encoded."
+    assert "catalog/datasets/../../foo" not in res.stderr and "catalog/datasets/../../foo" not in res.stdout, "Unencoded dataset ID was used!"
